@@ -1,0 +1,3702 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Maskinunderhåll — Checklista & Skiftsrapporter</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+  /* THEME VARIABLES (high contrast) */
+  :root{
+    --bg:#121212; --card:#1b1b1b; --muted:#98a0a6; --accent:#2bb7ff; --accent-contrast:#001a2a;
+    --surface:#151515; --danger:#ff6b6b; --success:#16a34a; --glass: rgba(255,255,255,0.04);
+    --radius:12px; --max-width:1100px; --text:#E0E0E0; --border: rgba(255,255,255,0.14);
+    --warning: #f59e0b;
+  }
+
+  /* Admin PM editor: write text and upload attachments (pdf/doc/docx)
+  function openPmEditor(pmData, onSaveCallback, isNew = false) {
+    const pm = { id: pmData.id || uid(), machineId: pmData.machineId || (state.machines[0]?.id || ''), text: pmData.text || '', attachments: Array.isArray(pmData.attachments) ? pmData.attachments.slice() : [] };
+    const machineOpts = state.machines.map(m => `<option value="${m.id}" ${m.id === pm.machineId ? 'selected' : ''}>${escapeHtml(m.name)}</option>`).join('');
+    const title = isNew ? 'Nytt PM' : 'Redigera PM';
+
+    const attList = () => pm.attachments.map((a, i) => {
+      const fileName = a.name || `bilaga-${i + 1}`;
+      return `<div class="tiny" style="display:flex;justify-content:space-between;gap:8px;align-items:center;margin-top:4px">
+        <a href="${a.data}" download="${escapeHtml(fileName)}" target="_blank" rel="noopener">${escapeHtml(a.name || ('Bilaga ' + (i + 1)))}</a>
+        <button data-i="${i}" class="danger" style="padding:2px 6px;font-size:12px">Ta bort</button>
+      </div>`;
+    }).join('');
+
+    const html = `
+      <div><label for="pmMachine">Maskin</label><select id="pmMachine" style="width:100%">${machineOpts}</select></div>
+      <div style="margin-top:8px"><label for="pmText">Meddelande</label><textarea id="pmText" style="width:100%;min-height:140px">${escapeHtml(pm.text)}</textarea></div>
+      <div style="margin-top:8px">
+        <label for="pmFiles">Bilagor (PDF/DOC/DOCX)</label>
+        <input id="pmFiles" type="file" accept="application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" multiple />
+        <div id="pmAtts">${attList() || '<div class="tiny muted">Inga bilagor</div>'}</div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;margin-top:10px"><button id="pmSave" class="ok">Spara</button></div>
+    `;
+
+    showModal(title, html, (card) => {
+      const filesInp = card.querySelector('#pmFiles');
+      const attsDiv = card.querySelector('#pmAtts');
+
+      function renderAtts() {
+        attsDiv.innerHTML = attList() || '<div class="tiny muted">Inga bilagor</div>';
+        attsDiv.querySelectorAll('button[data-i]').forEach(b => b.addEventListener('click', () => { const i = parseInt(b.getAttribute('data-i')); pm.attachments.splice(i, 1); renderAtts(); }));
+      }
+
+      filesInp.addEventListener('change', (e) => {
+        const files = Array.from(e.target.files || []);
+        if (!files.length) return;
+        let remaining = files.length;
+        files.forEach(f => {
+          const r = new FileReader();
+          r.onload = ev => { pm.attachments.push({ name: f.name, type: f.type, data: ev.target.result }); remaining--; if (remaining === 0) { renderAtts(); filesInp.value = ''; } };
+          r.readAsDataURL(f);
+        });
+      });
+
+      renderAtts();
+
+      card.querySelector('#pmSave').addEventListener('click', () => {
+        const machineId = card.querySelector('#pmMachine').value;
+        const text = (card.querySelector('#pmText').value || '').trim();
+        if (!machineId) { toast('Välj maskin'); return; }
+        if (!text) { toast('Skriv ett meddelande'); return; }
+        if (isNew) {
+          const obj = { id: pm.id, machineId, text, createdAt: now(), readBy: [], attachments: pm.attachments };
+          state.pms = Array.isArray(state.pms) ? state.pms : [];
+          state.pms.push(obj);
+          state.logs.push({ id: uid(), type: 'pm_new', ts: now(), meta: { machineId, pmId: pm.id } });
+        } else {
+          const ex = state.pms.find(x => x.id === pm.id);
+          if (ex) { ex.machineId = machineId; ex.text = text; ex.attachments = pm.attachments; }
+        }
+        saveState(state);
+        toast('PM sparat');
+        if (onSaveCallback) onSaveCallback();
+        document.getElementById('modalClose').click();
+      });
+    });
+  }
+ */
+  [data-theme="light"]{
+    --bg:#ffffff; --card:#ffffff; --muted:#374151; --accent:#0b74ff; --accent-contrast:#ffffff;
+    --surface:#f9fafb; --danger:#dc2626; --success:#059669; --glass: rgba(0,0,0,0.04); --text:#111827; --border: rgba(0,0,0,0.14);
+  }
+  *{box-sizing:border-box; font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;}
+  body{margin:0; min-height:100vh; background:linear-gradient(180deg,var(--bg), #07101a 80%); color:var(--text);}
+  .app{max-width:var(--max-width); margin:20px auto; padding:18px; display:grid; gap:14px;}
+  body[data-theme="light"]{ background: linear-gradient(180deg, #ffffff, #f3f4f6 80%); color: var(--text); }
+
+  header{display:flex;align-items:center;justify-content:space-between;gap:12px}
+  .brand{display:flex;gap:12px;align-items:center}
+  .logo{width:48px;height:48px;border-radius:10px;background:linear-gradient(135deg,var(--accent),#7ee7ff);display:flex;align-items:center;justify-content:center;color:var(--accent-contrast);font-weight:700}
+  h1{font-size:18px;margin:0}
+  .tiny{font-size:12px;color:var(--muted)}
+  .card{background:var(--card); padding:14px;border-radius:var(--radius); box-shadow: 0 8px 30px rgba(2,6,23,0.45); overflow:hidden; border:1px solid var(--border)}
+  .grid{display:grid;gap:12px}
+  .cols-3{grid-template-columns:1fr 360px; display:grid; align-items:start}
+  .main-layout{display:grid;grid-template-columns:1fr 360px;gap:12px;align-items:start}
+  .side-panels{display:flex;flex-direction:column;gap:12px}
+  @media (max-width:920px){ .cols-3{grid-template-columns:1fr} .main-layout{grid-template-columns:1fr} .controls{flex-wrap:wrap}}
+  .controls{display:flex;gap:8px;align-items:center}
+  button, .btn{background:var(--accent); color:var(--accent-contrast); border:none;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:600}
+  button.secondary{background:transparent;color:var(--accent);border:1px solid rgba(255,255,255,0.06)}
+  button.danger{background:var(--danger); color:#fff}
+  button.ok{background:var(--success); color:#fff}
+  input, select, textarea{padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:inherit;outline:none}
+  .machines-list{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+  .machine-item{display:flex;align-items:center;justify-content:space-between;padding:10px;border-radius:8px;background:rgba(255,255,255,0.02)}
+  .stat-grid{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+  .stat{background:var(--glass);padding:10px;border-radius:8px;min-width:120px}
+  .task{display:flex;gap:12px;padding:12px;border-radius:10px;background:var(--glass);align-items:center;border:1px solid var(--border); margin-bottom:8px}
+  .task:hover, .task:focus-within{border-color: rgba(43,183,255,0.6); box-shadow: 0 2px 8px rgba(43,183,255,0.15)}
+  .thumbnail{width:56px;height:40px;object-fit:cover;border-radius:6px;border:1px solid rgba(255,255,255,0.06)}
+  .progress{height:10px;background:rgba(255,255,255,0.04);border-radius:8px;overflow:hidden}
+  .progress > i{display:block;height:100%; background:linear-gradient(90deg,var(--accent),#7ee7ff); width:0%;}
+  /* subtle alert styles */
+  .stat.dangerish{ border:1px solid var(--danger); background: linear-gradient(180deg, rgba(220,38,38,0.10), transparent); }
+  .stat.dangerish #miniPending{ color: var(--danger); font-weight: 700; }
+  .task.overdue{ border-color: var(--danger); background: linear-gradient(180deg, rgba(220,38,38,0.12), transparent); }
+  .badge{ display:inline-block; padding:2px 6px; border-radius:10px; font-size:11px; line-height:1; vertical-align:middle; margin-left:6px; }
+  .task.due_today{ border-color: rgba(220,38,38,0.5); background: linear-gradient(180deg, rgba(220,38,38,0.08), transparent); }
+  .task.high-priority { border-color: var(--warning); background: linear-gradient(180deg, rgba(245,158,11,0.12), transparent); }
+  .badge.unread{ background: rgba(220,38,38,0.18); color:#dc2626; border:1px solid rgba(220,38,38,0.5); }
+
+  .badge.done{ background: rgba(16,185,129,0.18); color:#10b981; border:1px solid rgba(16,185,129,0.5); }
+  .badge.soon{ background: rgba(245,158,11,0.18); color:#f59e0b; border:1px solid rgba(245,158,11,0.5); }
+
+  .toast-wrap{position:fixed;right:18px;bottom:18px;display:flex;flex-direction:column;gap:8px;z-index:9999}
+  .toast{background:#081827;color:#e8f8ff;padding:10px 12px;border-radius:8px;box-shadow:0 8px 18px rgba(0,0,0,0.6)}
+  .modal{position:fixed;left:0;top:0;right:0;bottom:0;background:rgba(3,6,12,0.6);display:flex;align-items:center;justify-content:center;padding:18px;z-index:999;}
+  .modal .card{width:100%;max-width:920px;max-height:85vh;overflow:auto}
+  .hidden{display:none}
+  footer{display:flex;justify-content:space-between;color:var(--muted);font-size:13px}
+  /* Theme-aware selects */
+  select{ background-color: var(--card); color: var(--text); }
+  option{ background-color: var(--card); color: var(--text); }
+  select:focus{ outline: 2px solid rgba(43,183,255,0.5); outline-offset: 1px; }
+  /* Media gallery styles */
+  video{ max-width:100%; border-radius:8px; }
+  video::-webkit-media-controls-panel{ background: rgba(0,0,0,0.8); }
+  iframe{ border-radius:8px; }
+
+</style>
+</head>
+<body data-theme="dark">
+<div class="app">
+  <header>
+    <div class="brand">
+      <div class="logo">MU</div>
+      <div>
+        <h1>Maskinunderhåll — Checklista & Skift</h1>
+        <div class="tiny">Svenska • Serverfri prototyp • Lokal lagring</div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <button id="toggleTheme" class="secondary">Byt tema</button>
+      <button id="btnLogin" class="secondary">Admin</button>
+      <button id="btnLogout" class="secondary hidden">Logga ut</button>
+    </div>
+  </header>
+
+  <!-- Dashboard (full width) -->
+  <section class="card" id="panelDashboard">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div><strong>Instrumentpanel</strong><div class="tiny">Snabb överblick och senaste aktiviteter</div></div>
+      <div class="tiny" id="autosaveInfo">Autosave: inaktiv</div>
+    </div>
+
+    <div class="stat-grid">
+      <div class="stat"><div class="tiny">Maskiner</div><div id="statMachines">0</div></div>
+      <div class="stat"><div class="tiny">Uppgifter totalt</div><div id="statTasks">0</div></div>
+      <div class="stat"><div class="tiny">Pågående (öppna)</div><div id="statPending">0</div></div>
+      <div class="stat"><div class="tiny">Slutförda idag</div><div id="statDoneToday">0</div></div>
+    </div>
+
+    <hr style="margin:12px 0;border:none;border-top:1px solid rgba(255,255,255,0.04)">
+
+    <div class="tiny">Maskiner (namn & beskrivning)</div>
+    <div class="machines-list" id="machinesList"></div>
+  </section>
+
+  <!-- Main 2-column layout: Checklist | Side panels (Reports/Notes/Admin) -->
+  <div class="main-layout" style="margin-top:12px">
+    <!-- LEFT COLUMN: Checklist (full width as before) -->
+    <main>
+      <section class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div><strong>Checklista & Skift</strong><div class="tiny">Operatörer: fyll i och skicka in skiftsrapport</div></div>
+          <div class="tiny" id="selectedMachineTag">Ingen maskin vald</div>
+        </div>
+
+        <div style="margin-top:12px">
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <div style="flex:1">
+              <label class="tiny" for="selMachine">Maskin</label>
+              <select id="selMachine" style="width:100%"></select>
+            </div>
+            <div style="width:220px">
+              <label class="tiny" for="selShift">Skift</label>
+              <select id="selShift" style="width:100%">
+                <option value="dag">☀️ Dag (06:00-14:30)</option>
+                <option value="kvall">🌆 Kväll (14:30-23:24)</option>
+                <option value="natt">🌙 Natt (23:24-06:06)</option>
+                <option value="overtid">⏰ Övertid</option>
+              </select>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:8px;margin-top:8px;align-items:flex-end;flex-wrap:wrap">
+            <div id="checklistTypeWrap" style="width:160px">
+              <label class="tiny" for="selChecklistType">Checklista-typ</label>
+              <select id="selChecklistType" style="width:100%"></select>
+            </div>
+          </div>
+
+          <div id="operatorMiniStats" class="stat-grid" style="margin-top:10px;display:none">
+            <div class="stat"><div class="tiny" title="Inkluderar veckovisa uppgifter som förfaller inom 2 dagar samt månads-/halvårs-uppgifter inom 7 dagar">Öppna nu &#9432;</div><div id="miniPending">0</div></div>
+            <div class="stat"><div class="tiny">Klart idag</div><div id="miniDoneToday">0</div></div>
+            <div class="stat dangerish" id="miniPmWrap" style="display:none"><div class="tiny">Olästa PM</div><div id="miniUnreadPms">0</div></div>
+          </div>
+
+          <div style="display:flex;gap:8px;margin-top:10px;align-items:center;flex-wrap:wrap">
+            <button id="tabBtnChecklist" class="secondary">Checklista</button>
+            <button id="tabBtnShift" class="secondary">Skiftsrapport</button>
+            <button id="tabBtnPm" class="secondary">Senaste PM</button>
+            <button id="btnAddNote" class="secondary">Lägg till notering</button>
+          </div>
+
+          <div id="tabChecklist" style="margin-top:10px">
+            <section class="card" id="operatorLogsPanel" style="margin-top:12px">
+              <div><strong>Senaste aktivitet (48h)</strong></div>
+              <div id="recentLogsOp" style="margin-top:8px;max-height:260px;overflow:auto"></div>
+            </section>
+
+            <div id="typeFilterChips" style="margin:6px 0"></div>
+            <div id="tasksContainer" style="margin-top:12px"></div>
+          </div>
+
+          <div id="tabPm" style="margin-top:10px" class="hidden">
+            <div id="pmListOperator" style="margin-top:12px"></div>
+          </div>
+
+          <div id="tabShift" style="margin-top:10px" class="hidden">
+            <div id="shiftReportStatus" style="margin-bottom:8px;padding:8px;border-radius:8px;background:var(--glass);border:1px solid var(--border)"></div>
+            <label class="tiny" for="shiftReportText">Skiftsrapport (beskriv dagens arbete, problem, åtgärder)</label>
+            <textarea id="shiftReportText" style="width:100%;min-height:110px" placeholder="Skriv skiftsrapport..."></textarea>
+            <div style="display:flex;gap:8px;margin-top:8px;align-items:center;justify-content:flex-end">
+              <button id="btnSubmitShiftReport" class="btn ok">Spara skiftsrapport</button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- RIGHT COLUMN: Side panels (Reports, Notes, Admin) -->
+    <aside class="side-panels">
+      <section class="card" id="operatorReportsPanel">
+        <div id="operatorReportsTitle"><strong>Skiftsrapporter (14 dagar)</strong></div>
+        <div id="operatorReportsList" style="margin-top:8px;max-height:400px;overflow:auto"></div>
+      </section>
+
+      <section class="card" id="operatorNotesPanel">
+        <div id="operatorNotesTitle"><strong>Noteringar (7 dagar)</strong></div>
+        <div id="operatorNotesList" style="margin-top:8px;max-height:400px;overflow:auto"></div>
+      </section>
+
+      <section id="adminPanel" class="card">
+      <div><strong>Administration</strong><div class="tiny">Endast admin får tillgång</div></div>
+
+      <div style="margin-top:10px;display:flex;flex-direction:column;gap:8px">
+        <button id="btnExport" class="btn">Exportera data (JSON)</button>
+        <button id="btnQuickBackup" class="secondary">Snabbexport (backup)</button>
+        <button id="btnOpsTemplate" class="secondary">Ladda ned operators.json mall</button>
+
+        <button id="btnExportPdf" class="secondary">Exportera PDF</button>
+        <button id="btnWeeklyReport" class="secondary">Veckorapport (PDF)</button>
+        <button id="btnImport" class="secondary">Importera data</button>
+        <input id="fileImport" type="file" accept="application/json" class="hidden"/>
+        <button id="btnImportOps" class="secondary">Importera operatörer (JSON)</button>
+        <input id="fileImportOps" type="file" accept="application/json" class="hidden"/>
+
+        <div class="tiny">Tips: Dra & släpp en JSON-fil här för att importera (Data eller Operatörer)</div>
+
+        <button id="btnDemoSeed" class="secondary">Återställ standarddata</button>
+
+        <button id="btnClean" class="danger">Rensa gamla poster</button>
+        <label class="tiny" for="retentionDays">Retention (dagar)</label>
+        <input id="retentionDays" type="number" value="14" min="1" style="padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.04)"/>
+      </div>
+
+      <hr style="margin:12px 0;border:none;border-top:1px solid rgba(255,255,255,0.04)">
+      <div><strong>Rapporter & Loggar</strong><div class="tiny">Senaste 48 timmar</div></div>
+      <div style="margin-top:8px;display:flex;gap:8px">
+        <button id="btnViewShiftReports" class="secondary">Skiftsrapporter (14 dagar)</button>
+      </div>
+      <div id="recentLogs" style="margin-top:8px;max-height:260px;overflow:auto"></div>
+
+      <hr style="margin:12px 0;border:none;border-top:1px solid rgba(255,255,255,0.04)">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+        <button id="btnNewMachine" class="secondary">+ Ny maskin</button>
+        <button id="btnManageTasks" class="secondary">Hantera uppgifter</button>
+        <button id="btnManageOperators" class="secondary">Hantera operatörer</button>
+        <button id="btnAssignMachine" class="secondary">Tilldela operatörsmaskin</button>
+
+        <button id="btnManagePms" class="secondary">Hantera PM</button>
+        <button id="btnScheduleAnchors" class="secondary">Tidsankare (produktionsplan)</button>
+
+      </div>
+    </aside>
+  </div>
+
+  <footer>
+    <div class="tiny">Maskinunderhåll — Lokal klient</div>
+    <div class="tiny">© Demo</div>
+  </footer>
+</div>
+
+<div class="toast-wrap" id="toastWrap"></div>
+<div id="modalRoot" class="hidden"></div>
+
+<script>
+(async ()=>{
+
+  /* ------------------------
+     Konfiguration & defaults
+     ------------------------ */
+  const STORE_KEY = 'mu_data_v2';
+  const SESSION_KEY = 'mu_session';
+  const OP_SHIFT_KEY = 'mu_op_shift';
+  const DEFAULTS = {
+    adminUser: 'admin',
+    adminPassPlain: 'underhåll123',
+    retentionDefault: 14,
+    autosaveMs: 30000,
+    checklistTypes: [
+      {id:'underhall', name:'🔧 Underhåll'},
+      {id:'sakerhet', name:'🛡️ Säkerhet'},
+      {id:'5s', name:'📋 5S Check'},
+      {id:'kvalitet', name:'✅ Kvalitet'}
+    ]
+  };
+
+  // hash helper
+  async function hashString(s){
+    const enc = new TextEncoder();
+    const data = await crypto.subtle.digest('SHA-256', enc.encode(s));
+    return Array.from(new Uint8Array(data)).map(b=>b.toString(16).padStart(2,'0')).join('');
+  }
+  if(!localStorage.getItem('mu_admin_hash')) {
+    const h = await hashString(DEFAULTS.adminPassPlain);
+    localStorage.setItem('mu_admin_hash', h);
+  }
+
+  /* ------------------------
+     State management
+     ------------------------ */
+  function defaultState(){
+    return {
+      createdAt: new Date().toISOString(),
+      machines: [
+        {id:'m1', name:'DISKUS', desc:'D1_D2; och D3'},
+        {id:'m2', name:'DMG', desc:'SVARV_ MASKIN: SAMMA filerma till DMG_1 - DMG_2, och DMG 3'},
+        {id:'m3', name:'FAV', desc:''},
+        {id:'m4', name:'FRÄS', desc:''}
+      ],
+      tasks: [], // tasks linked to machines
+      logs: [], // system logs
+      reports: [], // shift reports
+      pms: [], // preventive maintenance messages
+      settings: { retentionDays: DEFAULTS.retentionDefault, lastSaved: null, theme:'dark', checklistTypes: DEFAULTS.checklistTypes, operators: [], assignedMachineId: '', firstRunDone: false }
+    };
+  }
+  function loadState(){
+    try{
+      const raw = localStorage.getItem(STORE_KEY);
+      if(!raw) { const s = defaultState(); saveState(s); return s; }
+      return JSON.parse(raw);
+    }catch(e){ console.error(e); const s=defaultState(); saveState(s); return s; }
+  }
+  function saveState(s){
+    s.settings.lastSaved = new Date().toISOString();
+    localStorage.setItem(STORE_KEY, JSON.stringify(s));
+  }
+
+  let state = loadState();
+
+  // DOM refs
+  const toastWrap = document.getElementById('toastWrap');
+  const modalRoot = document.getElementById('modalRoot');
+  const selMachine = document.getElementById('selMachine');
+  const selChecklistType = document.getElementById('selChecklistType');
+  const selShift = document.getElementById('selShift');
+  const operatorName = document.getElementById('operatorSelect') || document.getElementById('operatorName');
+  const machinesList = document.getElementById('machinesList');
+  const tasksContainer = document.getElementById('tasksContainer');
+  const adminPanel = document.getElementById('adminPanel');
+  const autosaveInfo = document.getElementById('autosaveInfo');
+
+  /* ------------------------
+     UI Helpers
+     ------------------------ */
+  function toast(text, opts={timeout:3000}) {
+    const d = document.createElement('div'); d.className='toast'; d.textContent = text;
+    toastWrap.appendChild(d);
+    setTimeout(()=> { d.style.opacity='0'; d.style.transform='translateY(8px)'; }, opts.timeout);
+    setTimeout(()=> d.remove(), opts.timeout + 300);
+  }
+
+  function showModal(title, html, onOpen){
+    modalRoot.innerHTML = ''; modalRoot.classList.remove('hidden');
+    const wrap = document.createElement('div'); wrap.className='modal';
+    const card = document.createElement('div'); card.className='card';
+    card.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center"><strong>${title}</strong><button id="modalClose" class="secondary">Stäng</button></div><hr style="margin:12px 0;border:none;border-top:1px solid rgba(255,255,255,0.04)">${html}`;
+    wrap.appendChild(card); modalRoot.appendChild(wrap);
+    document.getElementById('modalClose').addEventListener('click', ()=> { modalRoot.classList.add('hidden'); modalRoot.innerHTML=''; });
+    if(onOpen) onOpen(card);
+  }
+
+  /* ------------------------
+     Render functions
+     ------------------------ */
+  function renderChecklistTypes(){
+    selChecklistType.innerHTML = '';
+    // Add 'Alla' option to show all categories
+    const allOpt = document.createElement('option'); allOpt.value='*'; allOpt.textContent='Alla'; selChecklistType.appendChild(allOpt);
+    (state.settings.checklistTypes||[]).forEach(t=>{
+      const o = document.createElement('option'); o.value=t.id; o.textContent=t.name; selChecklistType.appendChild(o);
+    });
+    // Apply last selection or default to 'Alla'
+    state.settings = state.settings || {};
+    const desired = state.settings.lastChecklistType || '*';
+    if(Array.from(selChecklistType.options).some(o=>o.value===desired)) selChecklistType.value = desired;
+    // Render chips view to mirror selection
+    renderChecklistTypeChips();
+  }
+
+  function renderChecklistTypeChips(){
+    const host = document.getElementById('typeFilterChips');
+    if(!host) return;
+    const selected = selChecklistType.value || '*';
+    const types = [{id:'*', name:'Alla'}].concat((state.settings.checklistTypes||[]).map(t=>({id:t.id, name:t.name})));
+    host.innerHTML = '';
+    const bar = document.createElement('div');
+    bar.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:6px';
+    types.forEach(t=>{
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.textContent = t.name;
+      chip.className = 'secondary';
+      chip.style.cssText = 'padding:2px 10px;border-radius:999px;font-size:12px;cursor:pointer;';
+      if(t.id===selected){ chip.classList.add('ok'); }
+      chip.addEventListener('click', ()=>{
+        if(selChecklistType.value !== t.id){
+          selChecklistType.value = t.id;
+          state.settings.lastChecklistType = t.id; saveState(state);
+          renderChecklistTypeChips();
+          renderTasks(); renderOperatorMiniStats(); renderOperatorPublicPanels();
+        }
+      });
+      bar.appendChild(chip);
+    });
+    host.appendChild(bar);
+  }
+
+  function renderOperatorSelect(){
+    const el = document.getElementById('operatorSelect');
+    if(!el) return;
+    const ops = state.settings.operators || [];
+    el.innerHTML = ['<option value="">Välj...</option>']
+      .concat(ops.map(o=>`<option value="${escapeHtml(o.id)}">${escapeHtml(o.id)} — ${escapeHtml(o.name||'')}</option>`))
+      .join('');
+  }
+
+  // Operator shift session helpers
+  function getOperatorShiftSession(){
+    try{ return JSON.parse(sessionStorage.getItem(OP_SHIFT_KEY)||'null'); }catch(e){ return null; }
+  }
+  function setOperatorShiftSession(info){
+    sessionStorage.setItem(OP_SHIFT_KEY, JSON.stringify(info));
+  }
+  function clearOperatorShiftSession(){ sessionStorage.removeItem(OP_SHIFT_KEY); }
+
+  function getOperatorIdentity(){
+    try{
+      const sess = getOperatorShiftSession();
+      const tag = getCurrentShiftTag();
+      const mid = selMachine?.value;
+      if(sess && sess.operatorId && sess.shiftTag === tag && sess.machineId === mid){
+        return String(sess.operatorId).trim();
+      }
+    }catch(e){ /* ignore */ }
+    const inp = document.getElementById('operatorName');
+    if(inp && inp.value) return inp.value.trim();
+    const sel = document.getElementById('operatorSelect');
+    if(sel && sel.value) return sel.value;
+    return '';
+}
+
+// ---- Schedule anchors (weekly) helpers ----
+function ensureScheduleAnchors(){
+  state.settings = state.settings || {};
+  state.settings.scheduleAnchors = state.settings.scheduleAnchors || {};
+}
+function getWeekAnchorForMachine(mid){
+  ensureScheduleAnchors();
+  const a = state.settings.scheduleAnchors[mid];
+  if(!a) return null;
+  if(typeof a.week !== 'number') return null;
+  if(a.week < 0 || a.week > 6) return null; // 0=Sun..6=Sat (JS)
+  return a.week;
+}
+function startOfDay(d){ const x=new Date(d); x.setHours(0,0,0,0); return x; }
+function thisWeekAnchorDate(now, dow){
+  const n = new Date(now);
+  const todayDow = n.getDay(); // 0=Sun..6=Sat
+  const daysBack = (todayDow - dow + 7) % 7; // most recent anchor this week
+  const anchor = new Date(n); anchor.setDate(n.getDate() - daysBack);
+  anchor.setHours(0,0,0,0);
+  return anchor;
+}
+function nextWeekAnchorDate(now, dow){
+  const thisA = thisWeekAnchorDate(now, dow);
+  const next = new Date(thisA); next.setDate(thisA.getDate()+7);
+  return next;
+}
+
+  function isTaskDue(t){
+    const kind = t.intervalKind || ((t.intervalDays||0)===0?'none':(t.intervalDays===1?'day':(t.intervalDays===7?'week':((t.intervalDays||0)>=180?'half_year':((t.intervalDays||0)>=28?'month':'day')))));
+    const forcedShift = (t.checklistType==='sakerhet' || t.checklistType==='5s');
+    if(kind==='none') return (t.doneCount||0) < (t.totalCount||1);
+
+
+    if(kind==='on_demand') return true;
+    const nowD = new Date();
+    if(kind==='shift' || forcedShift){
+      const shift = (document.getElementById('selShift')?.value) || 'dag';
+      const shiftTag = `${nowD.toDateString()}|${shift}`;
+      return (t.lastDoneShiftTag || '') !== shiftTag;
+    }
+    const last = t.lastDoneAt ? new Date(t.lastDoneAt) : null;
+    if(kind==='day'){
+      if(!last) return true;
+      return nowD.toDateString() !== last.toDateString();
+    }
+    if(kind==='week'){
+      const dow = getWeekAnchorForMachine(t.machineId);
+      if(typeof dow === 'number'){
+        const anchorThis = thisWeekAnchorDate(nowD, dow);
+        if(!last) return nowD >= anchorThis;
+        return last < anchorThis;
+      }
+    }
+    if(!last) return true;
+    const days = (kind==='week')?7:(kind==='month')?30:182;
+    const msInterval = days * 24 * 60 * 60 * 1000;
+    return nowD.getTime() >= (last.getTime() + msInterval);
+  }
+  // Overtime detection: Sat/Sun or Friday from 15:46
+  function isOvertime(now){
+    const d = now.getDay(); // 0=Sun, 6=Sat
+    if(d===0 || d===6) return true;
+    if(d===5){
+      const minutes = now.getHours()*60 + now.getMinutes();
+      return minutes >= (15*60 + 46);
+    }
+    return false;
+  }
+
+  // Auto-detect current shift from local time
+  function getShiftForNow(now){
+    const minutes = now.getHours()*60 + now.getMinutes();
+    const m06_00 = 6*60 + 0;
+    const m14_30 = 14*60 + 30;
+    const m23_24 = 23*60 + 24;
+    if(minutes >= m06_00 && minutes < m14_30) return 'dag';
+    if(minutes >= m14_30 && minutes < m23_24) return 'kvall';
+    return 'natt';
+  }
+  function detectAndSetShift(){
+    if(!selShift) return;
+    const auto = getShiftForNow(new Date());
+    // Keep 'overtid' if explicitly chosen, otherwise set automatically
+    if(selShift.value !== 'overtid'){
+      selShift.value = auto;
+    }
+  }
+
+  // Shift helpers for per-shift PM read requirements
+  function getShiftTagForDate(d){
+    const label = getShiftForNow(d);
+    return `${d.toDateString()}|${label}`;
+  }
+  function getCurrentShiftTag(){
+    return getShiftTagForDate(new Date());
+  }
+
+  // Check if current time is within a specific shift's time range
+  function isWithinShiftTime(shiftValue, now = new Date()){
+    const minutes = now.getHours()*60 + now.getMinutes();
+    const m06_00 = 6*60 + 0;
+    const m14_30 = 14*60 + 30;
+    const m23_24 = 23*60 + 24;
+    const m06_06 = 6*60 + 6;
+
+    if(shiftValue === 'dag') return minutes >= m06_00 && minutes < m14_30;
+    if(shiftValue === 'kvall') return minutes >= m14_30 && minutes < m23_24;
+    if(shiftValue === 'natt') return minutes >= m23_24 || minutes < m06_06;
+    if(shiftValue === 'overtid') return true; // Overtime can be anytime
+    return false;
+  }
+
+  // Get existing shift report for current shift tag
+  function getExistingShiftReport(machineId, operatorId, shiftTag){
+    return state.reports.find(r =>
+      r.machineId === machineId &&
+      r.operator === operatorId &&
+      r.shiftTag === shiftTag
+    );
+  }
+  function isPmRequiredThisShift(pm, now){
+    try{
+      const createdAt = new Date(pm.createdAt);
+      if(!(createdAt.getTime())) return false;
+      if(now < createdAt) return false;
+      const TWO_DAYS_MS = 2*24*60*60*1000;
+      return (now.getTime() - createdAt.getTime()) <= TWO_DAYS_MS;
+    }catch(e){ return false; }
+  }
+  function hasPmReadForShift(pm, shiftTag){
+    const readBy = pm.readBy || [];
+    return readBy.some(r=>{
+      if(r.shiftTag){ return r.shiftTag === shiftTag; }
+      try{
+        if(r.ts){
+          const d = new Date(r.ts);
+          const tag = getShiftTagForDate(d);
+          return tag === shiftTag;
+        }
+      }catch(e){ /* noop */ }
+      return false;
+    });
+  }
+
+
+  function renderOperatorMiniStats(){
+    const panel = document.getElementById('operatorMiniStats'); if(!panel) return;
+    const is_admin = isAdmin(); panel.style.display = is_admin ? 'none' : 'grid';
+    const mid = selMachine.value; const typeId = selChecklistType.value;
+    const tasks = state.tasks.filter(t=> t.machineId===mid && (typeId==='*' || t.checklistType===typeId));
+
+    const nowD = new Date();
+    let pending = 0; let upcomingSoon = 0;
+    tasks.forEach(t=>{
+      const kind = t.intervalKind || ((t.intervalDays||0)===0?'none':(t.intervalDays===1?'day':(t.intervalDays===7?'week':((t.intervalDays||0)>=180?'half_year':((t.intervalDays||0)>=28?'month':'day')))));
+      if(isTaskDue(t)) { pending++; return; }
+      if(kind==='week'){
+        const last = t.lastDoneAt ? new Date(t.lastDoneAt) : null;
+        let next = null;
+        const dow = getWeekAnchorForMachine(t.machineId);
+        if(typeof dow === 'number'){
+          const anchorThis = thisWeekAnchorDate(nowD, dow);
+          const anchorNext = nextWeekAnchorDate(nowD, dow);
+          next = last ? anchorNext : anchorThis;
+        } else if(last){
+          next = new Date(last.getTime() + 7*24*60*60*1000);
+        }
+        if(next){
+          const diffDays = Math.ceil((next.getTime() - nowD.getTime())/(24*60*60*1000));
+          if(diffDays > 0 && diffDays <= 2) upcomingSoon++;
+        }
+      } else if(kind==='month' || kind==='half_year'){
+        const last = t.lastDoneAt ? new Date(t.lastDoneAt) : null;
+        if(last){
+          const days = (kind==='month')?30:182;
+          const next = new Date(last.getTime() + days*24*60*60*1000);
+          const diffDays = Math.ceil((next.getTime() - nowD.getTime())/(24*60*60*1000));
+          if(diffDays > 0 && diffDays <= 7) upcomingSoon++;
+        }
+
+      }
+    });
+
+    const pendingDisplay = pending + upcomingSoon;
+    // Update unread PM mini card
+    try{
+      const miniWrap = document.getElementById('miniPmWrap');
+      const miniNum = document.getElementById('miniUnreadPms');
+      if(miniWrap && miniNum){
+        const nowD = new Date();
+        const currentTag = getShiftTagForDate(nowD);
+        const pms = (state.pms||[]).filter(p=> p.machineId===mid && isPmRequiredThisShift(p, nowD));
+        const unread = pms.filter(p=> !hasPmReadForShift(p, currentTag)).length;
+        miniNum.textContent = String(unread);
+        miniWrap.style.display = (!is_admin && unread>0) ? 'block' : 'none';
+      }
+    }catch(e){ /* no-op */ }
+
+    const today = new Date().toDateString();
+    const doneIds = new Set(state.logs
+      .filter(l=> l.type==='task_done' && l.meta?.machineId===mid && (new Date(l.ts).toDateString()===today))
+      .map(l=> l.meta?.taskId).filter(Boolean));
+    const pendingEl = document.getElementById('miniPending');
+    if(pendingEl){ pendingEl.textContent = String(pendingDisplay); const stat = pendingEl.parentElement; if(stat){ const warnThreshold = 10; stat.classList.toggle('dangerish', pendingDisplay >= warnThreshold); } }
+    document.getElementById('miniDoneToday').textContent = String(doneIds.size);
+  }
+
+
+  function resolveOperatorId(input){
+    const s = (input||'').trim(); if(!s) return null;
+    const ops = state.settings.operators || [];
+    const lower = s.toLowerCase();
+    const byId = ops.find(o=> (o.id||'').trim() === s);
+    if(byId) return byId.id;
+    const byName = ops.find(o=> (o.name||'').trim().toLowerCase() === lower);
+    return byName ? byName.id : null;
+  }
+
+  // Sticky reminder + sign-in modal for operator shift
+  function shiftLabelFromValue(val){
+    if(val==='dag') return '🌅 Dag';
+    if(val==='kvall') return '🌆 Kväll';
+    if(val==='natt') return '🌙 Natt';
+    if(val==='overtid') return '⏰ Övertid';
+    return val || '';
+  }
+  function renderOperatorShiftReminder(){
+    const host = document.getElementById('tabChecklist');
+    if(!host) return;
+    let bar = document.getElementById('opShiftReminder');
+    const is_admin = isAdmin();
+    if(is_admin){ if(bar) bar.remove(); return; }
+    const curTag = getCurrentShiftTag();
+    const sess = getOperatorShiftSession();
+    const midCur = selMachine?.value;
+    const signed = !!(sess && sess.operatorId && sess.shiftTag===curTag && sess.machineId === midCur);
+    const currentShiftVal = (document.getElementById('selShift')?.value)||'dag';
+    const contentSigned = `<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <span class="tiny">Inloggad ID: <strong>${escapeHtml(String(sess?.operatorId||''))}</strong> — ${shiftLabelFromValue(currentShiftVal)}</span>
+      <span style="flex:1"></span>
+      <button id="opShiftChange" class="secondary">Byt ID</button>
+      <button id="opShiftLogout" class="secondary">Logga ut</button>
+    </div>`;
+    const contentUnsigned = `<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <span class="tiny">Signera skift: Ange ditt ID en gång per skift</span>
+      <span style="flex:1"></span>
+      <button id="opShiftLogin" class="ok">Ange ID</button>
+    </div>`;
+    if(!bar){
+      bar = document.createElement('div');
+      bar.id = 'opShiftReminder';
+      bar.setAttribute('role','region');
+      bar.setAttribute('aria-label','Skiftsignering');
+      bar.style.cssText = 'position:sticky;top:0;z-index:5;margin:8px 0;padding:8px;border-radius:8px;background:var(--glass);border:1px solid var(--border);backdrop-filter:saturate(120%) blur(4px)';
+      host.insertBefore(bar, host.firstChild);
+    }
+    bar.innerHTML = signed ? contentSigned : contentUnsigned;
+    const loginBtn = document.getElementById('opShiftLogin');
+    if(loginBtn){ loginBtn.addEventListener('click', ()=> openOperatorShiftSignIn()); }
+    const changeBtn = document.getElementById('opShiftChange');
+    if(changeBtn){ changeBtn.addEventListener('click', ()=> openOperatorShiftSignIn()); }
+    const logoutBtn = document.getElementById('opShiftLogout');
+    if(logoutBtn){ logoutBtn.addEventListener('click', ()=> {
+      const sessNow = getOperatorShiftSession();
+      if(sessNow && sessNow.operatorId){
+        state.logs = Array.isArray(state.logs) ? state.logs : [];
+        state.logs.push({ id: uid(), type:'shift_checkout', ts: now(), meta:{ machineId: selMachine.value, operator: sessNow.operatorId } });
+        saveState(state);
+      }
+      clearOperatorShiftSession();
+      renderOperatorShiftReminder();
+      if(typeof renderOperatorInlineStatus === 'function') renderOperatorInlineStatus();
+      if(typeof renderOperatorMiniStats === 'function') renderOperatorMiniStats();
+      if(typeof renderPmsForOperator === 'function') renderPmsForOperator();
+      if(typeof renderRecentLogs === 'function') renderRecentLogs();
+      toast('Utloggad från skift');
+    }); }
+  }
+  function renderOperatorInlineStatus(){
+    try{
+      const wrap = document.getElementById('operatorInlineStatusWrap');
+      if(!wrap) return;
+      const txt = document.getElementById('operatorInlineStatusText');
+      const btn = document.getElementById('opInlineToggle');
+      const sess = getOperatorShiftSession();
+      const curTag = getCurrentShiftTag();
+      const mid = selMachine?.value;
+      const signed = !!(sess && sess.operatorId && sess.shiftTag===curTag && sess.machineId===mid);
+      if(txt){ txt.textContent = signed ? `Inloggad ID: ${sess.operatorId}` : 'Inte inloggad'; }
+      if(btn){
+        btn.textContent = signed ? 'Checka ut' : 'Checka in';
+        btn.onclick = null;
+        if(signed){
+          btn.addEventListener('click', ()=>{
+            const sessNow = getOperatorShiftSession();
+            if(sessNow && sessNow.operatorId){
+              state.logs = Array.isArray(state.logs) ? state.logs : [];
+              state.logs.push({ id: uid(), type:'shift_checkout', ts: now(), meta:{ machineId: selMachine.value, operator: sessNow.operatorId } });
+              saveState(state);
+            }
+            clearOperatorShiftSession();
+            renderOperatorInlineStatus();
+            renderOperatorShiftReminder();
+            renderOperatorMiniStats();
+            renderPmsForOperator();
+            renderRecentLogs();
+            toast('Utloggad från skift');
+          });
+        } else {
+          btn.addEventListener('click', ()=>{
+            openOperatorShiftSignIn(()=>{ renderOperatorInlineStatus(); renderRecentLogs(); });
+          });
+        }
+      }
+    }catch(e){ /* no-op */ }
+  }
+
+  function openOperatorShiftSignIn(onSuccess){
+    const ops = state.settings.operators || [];
+    const opts = ['<option value="">Välj...</option>'].concat(ops.map(o=>`<option value="${escapeHtml(o.id)}">${escapeHtml(o.id)} — ${escapeHtml(o.name||'')}</option>`)).join('');
+    showModal('Signera skift', `
+      <div>
+        <label class="tiny" for="opShiftId">Inställning nummer (ID)</label>
+        <input id="opShiftId" style="width:100%" placeholder="Skriv ID"/>
+      </div>
+      <div style="margin-top:8px">
+        <label class="tiny" for="opShiftSel">Eller välj</label>
+        <select id="opShiftSel" style="width:100%">${opts}</select>
+      </div>
+      <div style="display:flex;justify-content:flex-end;margin-top:10px">
+        <button id="opShiftSave" class="ok">Spara</button>
+      </div>
+    `, (card)=>{
+      const inp = card.querySelector('#opShiftId');
+      const sel = card.querySelector('#opShiftSel');
+      sel.addEventListener('change', ()=>{ if(sel.value) inp.value = sel.value; });
+      card.querySelector('#opShiftSave').addEventListener('click', ()=>{
+        const raw = (inp.value||'').trim();
+        const id = resolveOperatorId(raw);
+        if(!id){ toast('Ogiltigt inställningsnummer/namn'); return; }
+        const tag = getCurrentShiftTag();
+        setOperatorShiftSession({ operatorId: id, shiftTag: tag, machineId: selMachine.value, ts: now() });
+        state.logs = Array.isArray(state.logs) ? state.logs : [];
+        state.logs.push({ id: uid(), type:'shift_signin', ts: now(), meta:{ machineId: selMachine.value, operator: id } });
+        saveState(state);
+        const opInp = document.getElementById('operatorName'); if(opInp) opInp.value = id;
+        modalRoot.classList.add('hidden'); modalRoot.innerHTML='';
+        renderOperatorShiftReminder(); renderOperatorInlineStatus(); renderOperatorMiniStats(); renderPmsForOperator(); renderRecentLogs();
+        toast('Skift signerat');
+        try{ if(typeof onSuccess === 'function') onSuccess(); }catch(e){ /*no-op*/ }
+      });
+    });
+  }
+  function requireOperatorIdOrToast(){
+    const raw = getOperatorIdentity();
+    const id = resolveOperatorId(raw);
+    if(id){ return id; }
+    openOperatorShiftSignIn();
+    toast('Ange ditt ID för detta skift');
+    return null;
+  }
+
+
+  function openEditMachine(m){
+    showModal('Redigera maskin', `<div><label>Namn</label><input id="emName" style="width:100%" value="${escapeHtml(m.name)}"/></div><div><label>Beskrivning</label><input id="emDesc" style="width:100%" value="${escapeHtml(m.desc||'')}"/></div><div style="display:flex;justify-content:flex-end;margin-top:8px"><button id="emSave" class="ok">Spara</button></div>`, (card)=>{
+      card.querySelector('#emSave').addEventListener('click', ()=> {
+        const name = card.querySelector('#emName').value.trim(); const desc = card.querySelector('#emDesc').value.trim();
+        if(!name){ toast('Namn krävs'); return; }
+        const mm = state.machines.find(x=>x.id===m.id);
+        if(mm){ mm.name = name; mm.desc = desc; saveState(state); modalRoot.classList.add('hidden'); modalRoot.innerHTML=''; renderMachines(); toast('Maskin uppdaterad'); }
+      });
+    });
+  }
+
+  function openEditMachine(m){
+    showModal('Redigera maskin', `<div><label>Namn</label><input id="emName" style="width:100%" value="${escapeHtml(m.name)}"/></div><div><label>Beskrivning</label><input id="emDesc" style="width:100%" value="${escapeHtml(m.desc||'')}"/></div><div style="display:flex;justify-content:flex-end;margin-top:8px"><button id="emSave" class="ok">Spara</button></div>`, (card)=>{
+      card.querySelector('#emSave').addEventListener('click', ()=> {
+        const name = card.querySelector('#emName').value.trim(); const desc = card.querySelector('#emDesc').value.trim();
+        if(!name){ toast('Namn krävs'); return; }
+        const mm = state.machines.find(x=>x.id===m.id);
+        if(mm){ mm.name = name; mm.desc = desc; saveState(state); modalRoot.classList.add('hidden'); modalRoot.innerHTML=''; renderMachines(); toast('Maskin uppdaterad'); }
+      });
+    });
+  }
+
+  function renderMachines(){
+    selMachine.innerHTML=''; machinesList.innerHTML='';
+    const is_admin = isAdmin();
+    // Operators can now see and choose ANY machine
+    const visibleMachines = state.machines;
+
+    // Populate machine select (operator sees only assigned)
+    visibleMachines.forEach(m=>{
+      const opt = document.createElement('option'); opt.value=m.id; opt.textContent = `${m.name} — ${m.desc||''}`; selMachine.appendChild(opt);
+    });
+    // Ensure a stable selection across refresh/reload
+    let desiredId = '';
+    if(state.settings && state.settings.lastSelectedMachineId){
+      desiredId = state.settings.lastSelectedMachineId;
+    }
+    // Fallbacks
+    if(desiredId && !visibleMachines.some(m=>m.id===desiredId)) desiredId = '';
+    if(!desiredId && selMachine.value && visibleMachines.some(m=>m.id===selMachine.value)) desiredId = selMachine.value;
+    if(!desiredId && visibleMachines[0]) desiredId = visibleMachines[0].id;
+    if(desiredId) selMachine.value = desiredId;
+    // Allow operators to choose freely
+    selMachine.disabled = false;
+
+
+    // Admin machine list with actions
+    if(is_admin){
+      state.machines.forEach(m=>{
+        const row = document.createElement('div'); row.className='machine-item';
+        row.innerHTML = `<div><strong>${m.name}</strong><div class="tiny">${m.desc||''}</div></div>`;
+        const actions = document.createElement('div'); actions.style.display='flex'; actions.style.gap='8px';
+        const btnSelect = document.createElement('button'); btnSelect.className='secondary'; btnSelect.textContent='Välj'; actions.appendChild(btnSelect);
+        const btnEdit = document.createElement('button'); btnEdit.className='secondary'; btnEdit.textContent='Redigera'; actions.appendChild(btnEdit);
+        row.appendChild(actions); machinesList.appendChild(row);
+        btnSelect.addEventListener('click', ()=> { selMachine.value = m.id; state.settings.lastSelectedMachineId = m.id; saveState(state); selectedMachineUpdate(); renderTasks(); renderOperatorMiniStats(); renderOperatorPublicPanels(); });
+        btnEdit.addEventListener('click', ()=> openEditMachine(m));
+      });
+    }
+
+    document.getElementById('statMachines').textContent = state.machines.length;
+  }
+
+  function selectedMachineUpdate(){
+    const mid = selMachine.value;
+    const m = state.machines.find(x=>x.id===mid);
+    document.getElementById('selectedMachineTag').textContent = m ? `${m.name}` : 'Ingen maskin vald';
+  }
+
+  function renderTasks(){
+
+
+    tasksContainer.innerHTML='';
+    const mid = selMachine.value;
+    if(!mid){ tasksContainer.innerHTML = '<div class="tiny">Välj maskin</div>'; return; }
+    const typeVal = selChecklistType.value;
+    const tasks = state.tasks.filter(t=> t.machineId === mid && (typeVal==='*' || t.checklistType === typeVal));
+    if(tasks.length===0) { tasksContainer.innerHTML = '<div class="tiny">Inga uppgifter i denna kategori</div>'; return; }
+    const MAX_VISIBLE = 6;
+    state.settings = state.settings || {};
+    state.settings.expandedTaskLists = state.settings.expandedTaskLists || {};
+    const key = `${mid}|${selChecklistType.value}`;
+    const isExpanded = !!state.settings.expandedTaskLists[key];
+    const rows = tasks;
+
+
+    const filterLabel = (typeVal==='*') ? 'Alla' : ((state.settings.checklistTypes||[]).find(x=>x.id===typeVal)?.name || typeVal);
+    const filterNotice = document.createElement('div');
+    filterNotice.className = 'tiny';
+    filterNotice.style.margin = '4px 0 6px 0';
+    filterNotice.textContent = `Filtrerar på: ${filterLabel}`;
+    tasksContainer.appendChild(filterNotice);
+    const listWrap = document.createElement('div');
+    listWrap.id = 'tasksListWrap';
+    tasksContainer.appendChild(listWrap);
+
+    rows.forEach(t=>{
+      const div = document.createElement('div'); div.className='task';
+      const kind = t.intervalKind || ((t.intervalDays||0)===0?'none':(t.intervalDays===1?'day':(t.intervalDays===7?'week':((t.intervalDays||0)>=180?'half_year':((t.intervalDays||0)>=28?'month':'day')))));
+      const ownerLabel = t.owner==='UH'?'UH':(t.owner==='OP+SKYDDSOMBUD'?'OP+skyddombud':'OP');
+      const kindLabel = kind==='none'?'Räknare': kind==='shift'?'Skift': kind==='day'?'Dag': kind==='week'?'Vecka': kind==='month'?'Månad': kind==='half_year'?'Halvår':'Vid behov';
+      const isSafety5S = (t.checklistType==='sakerhet' || t.checklistType==='5s');
+      let progressHtml = '';
+      let statusHtml = '';
+      let badgeHtml = '';
+      let overdueStyle = false;
+      let dueTodayStyle = false;
+      if(kind==='none'){
+        const done = t.doneCount||0; const total = t.totalCount||1; const pct = Math.round((done/total)*100);
+        progressHtml = `<div style=\"display:flex;gap:8px;align-items:center;margin-top:8px\"><div class=\"progress\" style=\"flex:1\"><i style=\"width:${pct}%\"></i></div><div class=\"tiny\">${pct}%</div></div>`;
+      } else if(kind==='on_demand'){
+        statusHtml = `<div class=\"tiny\">Vid behov</div>`;
+      } else if(kind==='shift' || isSafety5S){
+        const nowD = new Date();
+        const shift = selShift?.value || 'dag';
+        const shiftTag = `${nowD.toDateString()}|${shift}`;
+        const lastTag = t.lastDoneShiftTag || '';
+        const due = lastTag !== shiftTag;
+        progressHtml = '';
+        const shiftLabel = shift==='dag' ? '🌅 DAG' : (shift==='kvall' ? '🌆 KVÄLL' : '🌙 NATT');
+        const isOT = isOvertime(nowD);
+        const shiftLabelDisp = isOT ? `${shiftLabel} · Övertid` : shiftLabel;
+        if(isSafety5S && isOT){
+          const doneThisShift = lastTag === shiftTag;
+          statusHtml = doneThisShift
+            ? `<div class=\"tiny\">Utförd för detta skift — ${shiftLabelDisp}</div>`
+            : `<div class=\"tiny\">Frivillig (Övertid) — ${shiftLabelDisp}</div>`;
+        } else if(due){
+          if(isSafety5S){
+            const start = new Date(nowD);
+            if(shift==='dag'){ start.setHours(6,0,0,0); } else if(shift==='kvall'){ start.setHours(14,30,0,0); } else { start.setHours(23,24,0,0); }
+            const minutesSince = Math.floor((nowD.getTime() - start.getTime())/60000);
+            const overdue30 = minutesSince > 30;
+            if(overdue30) overdueStyle = true;
+            statusHtml = overdue30
+              ? `<div class=\"tiny\" style=\"color:var(--danger)\">Försenad (30+ min efter start) — ${shiftLabelDisp}</div>`
+              : `<div class=\"tiny\">Senast 30 min från start — ${shiftLabelDisp}</div>`;
+          } else {
+            statusHtml = `<div class=\"tiny\">Idag (${shiftLabelDisp})</div>`;
+          }
+        } else {
+          statusHtml = `<div class=\"tiny\">Utförd för detta skift</div>`;
+          badgeHtml = `<span class=\"badge done\">Utförd</span>`;
+        }
+      } else {
+        const last = t.lastDoneAt ? new Date(t.lastDoneAt) : null;
+        const nowD = new Date();
+        let due = false; let next = null; let pct = 0;
+        const days = (kind==='day')?1:(kind==='week')?7:(kind==='month')?30:182;
+        if(kind==='day'){
+          due = !last || nowD.toDateString() !== last.toDateString();
+          next = last ? new Date(last) : null; if(next){ next.setDate(next.getDate()+1); }
+          pct = due ? 100 : 0;
+        } else if(kind==='week'){
+          const dow = getWeekAnchorForMachine(mid);
+          if(typeof dow === 'number'){
+            const anchorThis = thisWeekAnchorDate(nowD, dow);
+            const anchorNext = nextWeekAnchorDate(nowD, dow);
+            due = !last ? nowD >= anchorThis : (last < anchorThis);
+            next = due ? anchorThis : anchorNext;
+          } else {
+            const msInterval = days * 24 * 60 * 60 * 1000;
+            next = last ? new Date(last.getTime() + msInterval) : null;
+            due = !last || nowD >= next;
+          }
+        } else {
+          const msInterval = days * 24 * 60 * 60 * 1000;
+          next = last ? new Date(last.getTime() + msInterval) : null;
+          due = !last || nowD >= next;
+          if(!last){ pct = 100; }
+          else { const elapsed = Math.max(0, nowD.getTime() - last.getTime()); pct = Math.min(100, Math.round((elapsed / msInterval) * 100)); }
+        }
+        const daysLeft = (due || !next) ? 0 : Math.max(0, Math.ceil((next.getTime() - nowD.getTime())/(24*60*60*1000)));
+        const daysWord = daysLeft === 1 ? 'dag' : 'dagar';
+        const progressLabel = daysLeft === 0 ? 'Idag' : `${daysLeft} ${daysWord} kvar`;
+        // Badge: show 'Utförd' until 2 days before next, then 'Snart' within 1-2 days
+        if(!due && next){
+          const diffDays = Math.ceil((next.getTime() - nowD.getTime())/(24*60*60*1000));
+          if(diffDays > 2){ badgeHtml = `<span class=\"badge done\">Utförd</span>`; }
+          else if(diffDays > 0){ badgeHtml = `<span class=\"badge soon\">Snart</span>`; }
+        }
+
+        // Show countdown only when not due to avoid duplicate "Idag" and confusing overdue labels
+        progressHtml = due ? '' : `<div class=\"tiny\">${progressLabel}</div>`;
+        const nextIsToday = next && next.toDateString() === nowD.toDateString();
+        dueTodayStyle = !!(due && (nextIsToday || !next));
+        overdueStyle = !!(due && next && !nextIsToday);
+        statusHtml = due
+          ? ((nextIsToday || !next)
+              ? `<div class=\"tiny\">Idag</div>`
+              : `<div class=\"tiny\" style=\"color:var(--danger)\">Förfallen</div>`)
+          : `<div class=\"tiny\">Nästa: ${next ? (kind==='day' ? next.toLocaleDateString() : next.toLocaleString()) : ''}</div>`;
+      }
+      div.innerHTML = `<div style=\"flex:1\"><strong>${t.title}</strong> ${badgeHtml}<div class=\"tiny\">${t.description||''}</div><div class=\"tiny\">Ansvarig: ${ownerLabel} · Intervall: ${kindLabel}</div>${progressHtml}${statusHtml}</div>
+        <div style=\"display:flex;flex-direction:column;gap:6px\"><button class=\"secondary\" data-id=\"${t.id}\" data-act=\"do\">Utföra</button><button class=\"secondary\" data-id=\"${t.id}\" data-act=\"view\">Visa</button></div>`;
+      if(dueTodayStyle){ div.classList.add('due_today'); }
+      if(overdueStyle){ div.classList.add('overdue'); }
+      listWrap.appendChild(div);
+      div.querySelector('[data-act=\"do\"]').addEventListener('click', ()=> {
+        const s = getSession(); const sessionRole = s?.role || '';
+        let opId = '';
+        let effRole = sessionRole;
+        if(sessionRole==='admin'){ opId = 'Admin'; effRole = 'admin'; }
+        else { opId = requireOperatorIdOrToast(); if(!opId) return; effRole = 'operator'; }
+        if(t.owner==='UH' && !(effRole==='admin' || String(opId).toUpperCase().startsWith('UH'))){ toast('Endast UH eller Admin kan utföra denna uppgift'); return; }
+        if((t.owner==='OP'||t.owner==='OP+SKYDDSOMBUD') && !(effRole==='operator' || effRole==='admin')){ toast('Endast operatör kan utföra'); return; }
+        const forcedShift = (t.checklistType==='sakerhet' || t.checklistType==='5s');
+
+
+        if(kind==='none'){
+          const total = t.totalCount||1; const done = t.doneCount||0;
+          if(done >= total){ toast('Redan klar'); return; }
+          t.doneCount = Math.min(total, done+1);
+          state.logs.push({id:uid(),type:'task_done',ts:now(),meta:{taskId:t.id,taskTitle:t.title,machineId:mid,operator: opId}});
+        } else if(kind==='on_demand'){
+          t.lastDoneAt = now();
+          state.logs.push({id:uid(),type:'task_done',ts:now(),meta:{taskId:t.id,taskTitle:t.title,machineId:mid,operator: opId, intervalKind:kind}});
+        } else if(kind==='shift' || forcedShift){
+          const shift = selShift?.value || 'dag';
+          const shiftTag = `${(new Date()).toDateString()}|${shift}`;
+          const dueNow = t.lastDoneShiftTag !== shiftTag;
+          if(!dueNow){ toast('Inte för detta skift'); return; }
+          t.lastDoneAt = now();
+          t.lastDoneShiftTag = shiftTag;
+          state.logs.push({id:uid(),type:'task_done',ts:now(),meta:{taskId:t.id,taskTitle:t.title,machineId:mid,operator: opId, intervalKind:(forcedShift ? 'shift' : kind), shift}});
+        } else {
+          const days = (kind==='day')?1:(kind==='week')?7:(kind==='month')?30:182;
+          const msInterval = days * 24 * 60 * 60 * 1000;
+          const dueNow = isTaskDue(t);
+          if(!dueNow){ toast('Inte förfallen ännu'); return; }
+          t.lastDoneAt = now();
+          if(kind==='week'){
+            const dow = getWeekAnchorForMachine(mid);
+            if(typeof dow === 'number'){
+              t.nextDueAt = nextWeekAnchorDate(new Date(), dow).toISOString();
+            } else {
+              t.nextDueAt = new Date(Date.now() + msInterval).toISOString();
+            }
+          } else {
+            t.nextDueAt = new Date(Date.now() + msInterval).toISOString();
+          }
+          state.logs.push({id:uid(),type:'task_done',ts:now(),meta:{taskId:t.id,taskTitle:t.title,machineId:mid,operator: opId, nextDueAt:t.nextDueAt, intervalKind:kind}});
+        }
+        saveState(state); renderTasks(); renderStats(); renderOperatorMiniStats(); toast('Uppgift utförd');
+
+      });
+      div.querySelector('[data-act=\"view\"]').addEventListener('click', ()=> {
+        const imgs = Array.isArray(t.images) ? t.images : [];
+        const vids = Array.isArray(t.videos) ? t.videos : [];
+        const imgsHtml = imgs.length ? `<div style="margin-top:8px"><strong class="tiny">Bilder:</strong><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">${imgs.map(src=>`<img src="${src}" style="width:160px;height:120px;object-fit:cover;border-radius:6px;border:1px solid rgba(255,255,255,0.1);cursor:pointer" onclick="window.open('${src}', '_blank')"/>`).join('')}</div></div>` : '';
+        const vidsHtml = vids.length ? `<div style="margin-top:8px"><strong class="tiny">Videor:</strong><div style="display:flex;flex-direction:column;gap:8px;margin-top:6px">${vids.map(v=>{
+          const path = v.path || v;
+          const name = v.name || path;
+          return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px;border-radius:6px;background:var(--glass);border:1px solid var(--border)">
+            <div class="tiny">🎥 ${escapeHtml(name)}</div>
+            <button onclick="playVideo('${escapeHtml(path)}')" class="secondary" style="padding:2px 8px;font-size:11px">Spela</button>
+          </div>`;
+        }).join('')}</div></div>` : '';
+        showModal(t.title, `<div style="max-height:60vh;overflow:auto"><div>${escapeHtml(t.description||'')}</div>${imgsHtml}${vidsHtml}</div>`, ()=>{});
+      });
+    });
+    // Scrollable collapsed view + Show more/less control
+    if(tasks.length > MAX_VISIBLE){
+      if(!isExpanded){
+        const kids = Array.from(listWrap.children);
+        const idx = Math.min(MAX_VISIBLE - 1, kids.length - 1);
+        if(idx >= 0 && kids[0]){
+          const firstTop = kids[0].offsetTop;
+          const cap = (kids[idx].offsetTop - firstTop) + kids[idx].offsetHeight;
+          listWrap.style.maxHeight = cap + 'px';
+          listWrap.style.overflowY = 'auto';
+        }
+      } else {
+        listWrap.style.maxHeight = 'none';
+        listWrap.style.overflowY = 'visible';
+      }
+      const wrap = document.createElement('div');
+      wrap.style.cssText = 'display:flex;justify-content:center;margin-top:8px';
+      const btn = document.createElement('button');
+      btn.className = 'secondary';
+      btn.textContent = isExpanded ? 'Visa färre' : `Visa alla (${tasks.length})`;
+      btn.addEventListener('click', ()=>{
+        state.settings.expandedTaskLists[key] = !isExpanded;
+        saveState(state);
+        renderTasks();
+      });
+      wrap.appendChild(btn);
+      tasksContainer.appendChild(wrap);
+    } else {
+      listWrap.style.maxHeight = 'none';
+      listWrap.style.overflowY = 'visible';
+    }
+
+  }
+
+  function renderStats(){
+    document.getElementById('statTasks').textContent = state.tasks.length;
+    const pending = state.tasks.filter(isTaskDue).length;
+    document.getElementById('statPending').textContent = pending;
+    const today = new Date().toDateString();
+    const doneIds = new Set(state.logs
+      .filter(l=> l.type==='task_done' && new Date(l.ts).toDateString() === today)
+      .map(l=> l.meta?.taskId).filter(Boolean));
+    document.getElementById('statDoneToday').textContent = String(doneIds.size);
+  }
+
+  function renderRecentLogs(){
+    const targets = ['recentLogs','recentLogsOp'].map(id=>document.getElementById(id)).filter(Boolean);
+
+    targets.forEach(el => el.innerHTML='');
+    const cutoff = new Date(); cutoff.setHours(cutoff.getHours()-48);
+    let logs = state.logs.filter(l=> new Date(l.ts) >= cutoff);
+    const mById = Object.fromEntries(state.machines.map(m=>[m.id,m]));
+    const session = getSession();
+    if(session && session.role === 'operator'){
+      const name = session.operatorName || getOperatorIdentity() || '';
+      logs = name ? logs.filter(l=> l.meta && l.meta.operator === name) : [];
+    }
+    const rows = logs.slice().reverse();
+    const fmt = (l)=>{
+      const ts = new Date(l.ts).toLocaleString();
+      if(l.type==='task_done'){
+        const m = mById[l.meta?.machineId];
+        const mach = m?m.name:(l.meta?.machineId||'');
+        return `${ts} — Uppgift klar · ${mach} · ID: ${l.meta?.operator||''}`;
+      }
+      if(l.type==='shift_report'){
+        const m = mById[l.meta?.machineId];
+        const mach = m?m.name:(l.meta?.machineId||'');
+        return `${ts} — Skiftsrapport · ${mach} · ${String(l.meta?.shift||'').toUpperCase()} · ID: ${l.meta?.operator||''}`;
+      }
+      if(l.type==='note'){
+        const m = mById[l.meta?.machineId];
+        const mach = m?m.name:(l.meta?.machineId||'');
+        return `${ts} — Notering · ${mach}: ${l.meta?.text||''}`;
+      }
+      if(l.type==='pm_read'){
+        const m = mById[l.meta?.machineId];
+        const mach = m?m.name:(l.meta?.machineId||'');
+        return `${ts} — PM bekräftat · ${mach} · ID: ${l.meta?.operator||''}`;
+      }
+      return `${ts} — ${l.type}`;
+    };
+    targets.forEach(el=>{
+      if(rows.length===0){ el.innerHTML = '<div class="tiny">Inga loggar</div>'; return; }
+      rows.forEach(l=>{
+        const row = document.createElement('div'); row.className='tiny'; row.style.marginBottom='8px';
+        row.textContent = fmt(l);
+        el.appendChild(row);
+      });
+    });
+  }
+
+  // Fix stray control chars from earlier encodings
+  function normalizeTypography(root){
+    if(!root) return;
+    root.innerHTML = root.innerHTML
+      .replace(/\u0014/g, ' — ')
+      .replace(/\u0000b7/g, ' · ')
+      .replace(/\uFFFDb7/g, ' · ');
+  }
+
+
+  // Operator-facing lists: reports (14d) and notes (7d)
+  function renderPmsForOperator() {
+    const pmList = document.getElementById('pmListOperator');
+    if (!pmList) return;
+
+    const mid = selMachine.value;
+    const pms = (state.pms || []).filter(p => p.machineId === mid);
+
+    const operatorId = (getOperatorIdentity()||'').trim();
+
+    const threeDaysAgo = new Date();
+    threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+
+    pmList.innerHTML = pms.slice().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).map(pm => {
+      const nowD = new Date();
+      const within = isPmRequiredThisShift(pm, nowD);
+      const currentTag = getShiftTagForDate(nowD);
+      const isReadThisShift = hasPmReadForShift(pm, currentTag);
+      const isRead = within ? isReadThisShift : true;
+      const isNew = within && !isReadThisShift;
+
+      let badgeHtml = '';
+      if (isRead) {
+        const readInfo = (pm.readBy || []).find(r => r.operatorId === operatorId);
+        badgeHtml = `<span class="badge done">Läst</span>`;
+      } else {
+        badgeHtml = `<span class="badge unread">Ej läst</span>`;
+      }
+      const atts = Array.isArray(pm.attachments) ? pm.attachments : [];
+      const attHtml = atts.length ? `<div class="tiny">Bilagor: ${atts.map((a,i)=>`<a href="${a.data}" target="_blank" rel="noopener" class="pm-attachment" data-name="${escapeHtml(a.name||('Bilaga '+(i+1)))}">${escapeHtml(a.name||('Bilaga '+(i+1)))}</a>`).join(' · ')}</div>` : '';
+      const confirmButton = (!isRead && within) ? `<button class="secondary" data-id="${pm.id}" data-act="confirm-pm">Läs och bekräfta</button>` : '';
+      const highPriorityClass = (isNew && !isRead) ? 'high-priority' : '';
+
+      return `<div class="task ${highPriorityClass}">
+        <div style="flex:1">
+          <strong>${escapeHtml(pm.text)}</strong> ${badgeHtml}
+          <div class="tiny">Skapad: ${new Date(pm.createdAt).toLocaleString()}</div>
+          ${attHtml}
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px">${confirmButton}</div>
+      </div>`;
+    }).join('');
+
+    // Intercept PDF attachment clicks to open a stable in-app viewer and auto-refresh iframe once
+    pmList.querySelectorAll('a.pm-attachment').forEach(a => {
+      a.addEventListener('click', (e) => {
+        const href = a.getAttribute('href') || '';
+        if (/^data:application\/pdf/i.test(href)) {
+          e.preventDefault();
+          openPdfInNewTab(href, a.getAttribute('data-name') || a.textContent.trim() || 'Bilaga.pdf');
+        }
+      });
+    });
+
+    pmList.querySelectorAll('[data-act="confirm-pm"]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const pmId = btn.getAttribute('data-id');
+        const tryConfirm = (operatorId) => {
+          const pm = state.pms.find(p => p.id === pmId);
+          if (pm) {
+            if (!pm.readBy) pm.readBy = [];
+            const nowD = new Date();
+            const tag = getShiftTagForDate(nowD);
+            if (!pm.readBy.some(r => r.operatorId === operatorId && (r.shiftTag === tag))) {
+              pm.readBy.push({ operatorId, ts: nowD.toISOString(), shiftTag: tag });
+              state.logs = Array.isArray(state.logs) ? state.logs : [];
+              state.logs.push({ id: uid(), type: 'pm_read', ts: now(), meta: { machineId: pm.machineId, operator: operatorId, pmId } });
+              saveState(state);
+            }
+          }
+          renderPmsForOperator();
+          renderOperatorMiniStats();
+          renderRecentLogs();
+          toast('PM bekräftat');
+        };
+
+        const opId = requireOperatorIdOrToast();
+        if (!opId) {
+          openOperatorShiftSignIn(() => {
+            const id2 = resolveOperatorId(getOperatorIdentity());
+            if (id2) tryConfirm(id2);
+          });
+          return;
+        }
+        tryConfirm(opId);
+      });
+    });
+  }
+
+  // Define PM editor in script scope
+  function openPmEditor(pmData, onSaveCallback, isNew = false) {
+    const pm = { 
+      id: pmData.id || uid(), 
+      machineId: pmData.machineId || (state.machines[0]?.id || ''), 
+      text: pmData.text || '', 
+      attachments: Array.isArray(pmData.attachments) ? pmData.attachments.slice() : [] 
+    };
+    
+    const machineOpts = state.machines.map(m => 
+      `<option value="${m.id}" ${m.id === pm.machineId ? 'selected' : ''}>${escapeHtml(m.name)}</option>`
+    ).join('');
+    
+    const title = isNew ? 'Nytt PM' : 'Redigera PM';
+    
+    // Improved attachment list with download and proper file handling
+    const attList = () => {
+      if (!pm.attachments || !pm.attachments.length) {
+        return '<div class="tiny muted">Inga bilagor</div>';
+      }
+      return pm.attachments.map((a, i) => {
+        const fileExt = a.type ? a.type.split('/').pop() : '';
+        const fileName = a.name || `Bilaga_${i + 1}${fileExt ? '.' + fileExt : ''}`;
+        return `
+          <div class="tiny" style="display:flex;justify-content:space-between;gap:8px;align-items:center;margin-top:4px">
+            <a href="${a.data}" 
+               target="_blank" 
+               rel="noopener" 
+               class="attachment-link" 
+               data-name="${escapeHtml(fileName)}">
+              ${escapeHtml(a.name || `Bilaga ${i + 1}`)}
+            </a>
+            <button data-i="${i}" class="danger" style="padding:2px 6px;font-size:12px">Ta bort</button>
+          </div>`;
+      }).join('');
+    };
+
+    const html = `
+      <div>
+        <label for="pmMachine">Maskin</label>
+        <select id="pmMachine" class="form-control" style="width:100%">
+          ${machineOpts}
+        </select>
+      </div>
+      <div style="margin-top:8px">
+        <label for="pmText">Meddelande</label>
+        <textarea id="pmText" class="form-control" style="width:100%;min-height:140px">${escapeHtml(pm.text)}</textarea>
+      </div>
+      <div style="margin-top:8px">
+        <label for="pmFiles">Bilagor (PDF/DOC/DOCX, max 5MB per fil)</label>
+        <input id="pmFiles" type="file" class="form-control" 
+               accept="application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" 
+               multiple 
+               aria-describedby="fileHelp" />
+        <small id="fileHelp" class="form-text text-muted">Accepterar PDF, DOC och DOCX filer. Maximal filstorlek: 5MB per fil.</small>
+        <div id="pmAtts" class="attachments-container">
+          ${attList()}
+        </div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;margin-top:10px">
+        <button id="pmSave" class="btn btn-primary">Spara</button>
+      </div>
+    `;
+    
+    showModal(title, html, (card) => {
+      const filesInp = card.querySelector('#pmFiles');
+      const attsDiv = card.querySelector('#pmAtts');
+      
+      // Improved render function for attachments
+      function renderAtts() {
+        attsDiv.innerHTML = attList() || '<div class="tiny muted">Inga bilagor</div>';
+        // Add event listeners to delete buttons
+        attsDiv.querySelectorAll('button[data-i]').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            const i = parseInt(btn.getAttribute('data-i'));
+            if (!isNaN(i) && i >= 0 && i < pm.attachments.length) {
+              pm.attachments.splice(i, 1);
+              renderAtts();
+            }
+          });
+        });
+        // Open PDF attachments in a stable in-app viewer with a single refresh
+        attsDiv.querySelectorAll('a.attachment-link').forEach(anchor => {
+          anchor.addEventListener('click', (e) => {
+            const href = anchor.getAttribute('href') || '';
+            if (/^data:application\/pdf/i.test(href)) {
+              e.preventDefault();
+              openPdfInNewTab(href, anchor.getAttribute('data-name') || anchor.textContent.trim() || 'Bilaga.pdf');
+            }
+          });
+        });
+      }
+      
+      // Handle file selection with validation
+      filesInp.addEventListener('change', (e) => {
+        const files = Array.from(e.target.files || []);
+        if (!files.length) return;
+        
+        let remaining = files.length;
+        const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+        const allowedTypes = [
+          'application/pdf',
+          'application/msword',
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        ];
+        
+        files.forEach(file => {
+          // Validate file type
+          if (!allowedTypes.includes(file.type)) {
+            toast(`Filtypen ${file.type} stöds inte. Endast PDF, DOC och DOCX är tillåtna.`);
+            remaining--;
+            if (remaining === 0) filesInp.value = '';
+            return;
+          }
+          
+          // Validate file size
+          if (file.size > MAX_FILE_SIZE) {
+            toast(`Filen ${file.name} är för stor. Maximal filstorlek är 5MB.`);
+            remaining--;
+            if (remaining === 0) filesInp.value = '';
+            return;
+          }
+          
+          const reader = new FileReader();
+          
+          reader.onload = (ev) => {
+            try {
+              if (typeof ev.target.result === 'string' && ev.target.result.startsWith('data:')) {
+                pm.attachments.push({
+                  name: file.name,
+                  type: file.type,
+                  data: ev.target.result,
+                  size: file.size,
+                  lastModified: file.lastModified
+                });
+              }
+            } catch (error) {
+              console.error('Error processing file:', error);
+              toast('Ett fel uppstod vid bearbetning av filen.');
+            }
+            
+            remaining--;
+            if (remaining === 0) {
+              renderAtts();
+              filesInp.value = ''; // Reset file input
+            }
+          };
+          
+          reader.onerror = () => {
+            console.error('FileReader error:', reader.error);
+            toast('Kunde inte läsa filen. Försök igen.');
+            remaining--;
+            if (remaining === 0) filesInp.value = '';
+          };
+          
+          reader.readAsDataURL(file);
+        });
+      });
+      
+      // Initial render of attachments
+      renderAtts();
+      card.querySelector('#pmSave').addEventListener('click', ()=>{
+        const machineId = card.querySelector('#pmMachine').value;
+        const text = (card.querySelector('#pmText').value||'').trim();
+        if(!machineId){ toast('Välj maskin'); return; }
+        if(!text){ toast('Skriv ett meddelande'); return; }
+        if(isNew){
+          const obj = { id: pm.id, machineId, text, createdAt: now(), readBy: [], attachments: pm.attachments };
+          state.pms = Array.isArray(state.pms) ? state.pms : [];
+          state.pms.push(obj);
+          state.logs.push({id:uid(), type:'pm_new', ts: now(), meta:{machineId, pmId: pm.id}});
+        } else {
+          const ex = state.pms.find(x=>x.id===pm.id);
+          if(ex){ ex.machineId = machineId; ex.text = text; ex.attachments = pm.attachments; }
+        }
+        saveState(state);
+        toast('PM sparat');
+        if(onSaveCallback) onSaveCallback();
+        document.getElementById('modalClose').click();
+      });
+    });
+  }
+
+  function renderOperatorPublicPanels(){
+    const is_admin = isAdmin();
+    const logsPanel = document.getElementById('operatorLogsPanel');
+    if(logsPanel) logsPanel.style.display = is_admin ? 'block' : 'none';
+    const repPanel = document.getElementById('operatorReportsPanel');
+    const notesPanel = document.getElementById('operatorNotesPanel');
+    if(repPanel) repPanel.style.display = is_admin ? 'none' : 'block';
+    if(notesPanel) notesPanel.style.display = is_admin ? 'none' : 'block';
+
+    const repList = document.getElementById('operatorReportsList');
+    if(repList){
+      repList.innerHTML = '';
+
+      // Remove old event delegation listener if exists
+      if(repList._weekClickHandler) {
+        repList.removeEventListener('click', repList._weekClickHandler);
+      }
+      const cutoff14 = new Date(); cutoff14.setDate(cutoff14.getDate()-14);
+      const mById = Object.fromEntries(state.machines.map(m=>[m.id,m]));
+      const mid = selMachine.value;
+      const repTitleEl = document.getElementById('operatorReportsTitle');
+      if(repTitleEl){ const mSel = state.machines.find(x=>x.id===mid); repTitleEl.innerHTML = `<strong>Skiftsrapporter (14 dagar)</strong> — ${escapeHtml(mSel?mSel.name:(mid||''))}`; }
+      const reports = state.reports.filter(r=> r.machineId===mid && new Date(r.ts) >= cutoff14).slice().reverse();
+      if(reports.length===0){ repList.innerHTML = '<div class="tiny">Inga rapporter</div>'; }
+
+      // Helper: Get ISO week number
+      function getWeekNumber(d) {
+        const date = new Date(d.getTime());
+        date.setHours(0, 0, 0, 0);
+        date.setDate(date.getDate() + 3 - (date.getDay() + 6) % 7);
+        const week1 = new Date(date.getFullYear(), 0, 4);
+        return 1 + Math.round(((date - week1) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7);
+      }
+
+      // Helper: Get Monday of the week
+      function getMondayOfWeek(d) {
+        const date = new Date(d);
+        const day = date.getDay();
+        const diff = date.getDate() - day + (day === 0 ? -6 : 1); // adjust when day is sunday
+        return new Date(date.setDate(diff));
+      }
+
+      // Group reports by production day (night shift starts the day)
+      const reportsByProductionDay = {};
+      reports.forEach(r=>{
+        const rDate = new Date(r.ts);
+        let productionDate = new Date(rDate);
+
+        // If it's a night shift, it belongs to the previous calendar day's production cycle
+        if(r.shift === 'natt' && rDate.getHours() >= 23) {
+          // Night shift after 23:00 belongs to current day's production
+          // (will continue into next calendar day)
+        } else if(r.shift === 'natt' && rDate.getHours() < 7) {
+          // Night shift before 07:00 belongs to previous day's production
+          productionDate.setDate(productionDate.getDate() - 1);
+        }
+
+        const dateKey = productionDate.toDateString();
+        if(!reportsByProductionDay[dateKey]) reportsByProductionDay[dateKey] = [];
+        reportsByProductionDay[dateKey].push(r);
+      });
+
+      // Sort reports within each day: Natt → Dag → Kväll → Övertid
+      const shiftOrder = {'natt': 1, 'dag': 2, 'kvall': 3, 'overtid': 4};
+      Object.keys(reportsByProductionDay).forEach(key => {
+        reportsByProductionDay[key].sort((a, b) => {
+          const orderA = shiftOrder[a.shift] || 99;
+          const orderB = shiftOrder[b.shift] || 99;
+          return orderA - orderB;
+        });
+      });
+
+      // Group days by week
+      const reportsByWeek = {};
+      Object.keys(reportsByProductionDay).forEach(dateKey => {
+        const dateObj = new Date(dateKey);
+        const weekNum = getWeekNumber(dateObj);
+        const year = dateObj.getFullYear();
+        const weekKey = `${year}-W${weekNum}`;
+
+        if(!reportsByWeek[weekKey]) {
+          reportsByWeek[weekKey] = {
+            weekNum,
+            year,
+            monday: getMondayOfWeek(dateObj),
+            days: {}
+          };
+        }
+        reportsByWeek[weekKey].days[dateKey] = reportsByProductionDay[dateKey];
+      });
+
+      // Determine current week
+      const now = new Date();
+      const currentWeekNum = getWeekNumber(now);
+      const currentYear = now.getFullYear();
+      const currentWeekKey = `${currentYear}-W${currentWeekNum}`;
+
+      // Get end of current week (Sunday 23:59)
+      const endOfCurrentWeek = new Date(now);
+      const dayOfWeek = endOfCurrentWeek.getDay();
+      const daysUntilSunday = dayOfWeek === 0 ? 0 : 7 - dayOfWeek;
+      endOfCurrentWeek.setDate(endOfCurrentWeek.getDate() + daysUntilSunday);
+      endOfCurrentWeek.setHours(23, 59, 59, 999);
+
+      // Render weeks
+      Object.keys(reportsByWeek).sort().reverse().forEach(weekKey => {
+        const weekData = reportsByWeek[weekKey];
+        const isCurrentWeek = weekKey === currentWeekKey;
+        const weekHasEnded = now > endOfCurrentWeek && weekKey === currentWeekKey ? false : !isCurrentWeek;
+
+        const weekId = `week-${weekKey}`;
+        const monday = weekData.monday;
+        const sunday = new Date(monday);
+        sunday.setDate(monday.getDate() + 6);
+
+        const weekDateRange = `${monday.getDate()} ${monday.toLocaleDateString('sv-SE', {month: 'short'})} - ${sunday.getDate()} ${sunday.toLocaleDateString('sv-SE', {month: 'short'})}`;
+
+        // Count total shifts in week
+        const totalShifts = Object.values(weekData.days).reduce((sum, dayReports) => sum + dayReports.length, 0);
+
+        if(weekHasEnded) {
+          // Render as collapsed week card
+          const weekCard = document.createElement('div');
+          weekCard.style.cssText = 'margin-bottom:12px;border-radius:8px;background:rgba(255,255,255,0.04);border:1px solid var(--border);overflow:hidden;position:relative;';
+
+          const weekContent = document.createElement('div');
+          weekContent.id = weekId;
+          weekContent.style.cssText = 'display:none;';
+
+          const weekHeader = document.createElement('div');
+          weekHeader.style.cssText = 'padding:10px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;background:rgba(255,255,255,0.06);user-select:none;position:relative;z-index:10;';
+          weekHeader.setAttribute('data-week-id', weekId);
+          weekHeader.title = 'Klicka för att expandera/kollapsa';
+
+          const weekHeaderLeft = document.createElement('div');
+          weekHeaderLeft.style.cssText = 'pointer-events:none;';
+          weekHeaderLeft.innerHTML = `<strong>📅 Vecka ${weekData.weekNum} · ${weekData.year}</strong>
+            <div class="tiny">${weekDateRange} · ${totalShifts} skifter totalt</div>`;
+
+          const weekHeaderIcon = document.createElement('span');
+          weekHeaderIcon.id = `${weekId}-icon`;
+          weekHeaderIcon.style.cssText = 'pointer-events:none;';
+          weekHeaderIcon.textContent = '▶';
+
+          weekHeader.appendChild(weekHeaderLeft);
+          weekHeader.appendChild(weekHeaderIcon);
+
+          // Render days within week
+          Object.keys(weekData.days).sort((a, b) => new Date(a) - new Date(b)).forEach(dateKey => {
+            const dayReports = weekData.days[dateKey];
+            const dateObj = new Date(dateKey);
+            const dayId = `day-${dateKey.replace(/\s/g, '-')}`;
+
+            const dayName = dateObj.toLocaleDateString('sv-SE', {weekday: 'long'});
+            const dayNameCap = dayName.charAt(0).toUpperCase() + dayName.slice(1);
+            const dateStr = dateObj.toLocaleDateString('sv-SE', {day: 'numeric', month: 'short'});
+
+            const shiftTypes = [...new Set(dayReports.map(r => r.shift))];
+            const shiftEmojis = shiftTypes.map(s =>
+              s === 'dag' ? '☀️' : (s === 'kvall' ? '🌆' : (s === 'natt' ? '🌙' : '⏰'))
+            ).join(' ');
+
+            const dayDiv = document.createElement('div');
+            dayDiv.style.cssText = 'border-top:1px solid rgba(255,255,255,0.06);';
+
+            const dayContent = document.createElement('div');
+            dayContent.id = dayId;
+            dayContent.style.display = 'none';
+
+            const dayHeader = document.createElement('div');
+            dayHeader.style.cssText = 'padding:8px 10px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;background:rgba(255,255,255,0.02);user-select:none;position:relative;z-index:5;';
+            dayHeader.setAttribute('data-day-id', dayId);
+            dayHeader.title = 'Klicka för att expandera/kollapsa';
+
+            const dayHeaderLeft = document.createElement('div');
+            dayHeaderLeft.style.cssText = 'pointer-events:none;';
+            dayHeaderLeft.innerHTML = `<strong style="font-size:14px">${dayNameCap} ${dateStr}</strong>
+              <span class="tiny" style="margin-left:8px">${shiftEmojis} ${dayReports.length} skift</span>`;
+
+            const dayHeaderIcon = document.createElement('span');
+            dayHeaderIcon.id = `${dayId}-icon`;
+            dayHeaderIcon.style.cssText = 'pointer-events:none;';
+            dayHeaderIcon.textContent = '▶';
+
+            dayHeader.appendChild(dayHeaderLeft);
+            dayHeader.appendChild(dayHeaderIcon);
+
+            dayReports.forEach(r => {
+              const m = mById[r.machineId];
+              const shiftEmoji = r.shift === 'dag' ? '☀️' : (r.shift === 'kvall' ? '🌆' : (r.shift === 'natt' ? '🌙' : '⏰'));
+              const row = document.createElement('div');
+              row.style.cssText = 'padding:10px;border-top:1px solid rgba(255,255,255,0.04);';
+              row.innerHTML = `<div class="tiny">${new Date(r.ts).toLocaleTimeString('sv-SE', {hour:'2-digit', minute:'2-digit'})} — ${shiftEmoji} ${r.shift?.toUpperCase()||''}</div>
+                <div class="tiny">ID: ${escapeHtml(r.operator||'')} · Signatur: ${escapeHtml(r.signature||'')}</div>
+                <div style="white-space:pre-wrap;margin-top:6px">${escapeHtml(r.text||'')}</div>`;
+              dayContent.appendChild(row);
+            });
+
+            // Event handler will be handled by delegation
+
+            dayDiv.appendChild(dayHeader);
+            dayDiv.appendChild(dayContent);
+            weekContent.appendChild(dayDiv);
+          });
+
+          weekCard.appendChild(weekHeader);
+          weekCard.appendChild(weekContent);
+          repList.appendChild(weekCard);
+
+        } else {
+          // Current week: render days individually (not in week card)
+          Object.keys(weekData.days).sort((a, b) => new Date(b) - new Date(a)).forEach(dateKey => {
+            const dayReports = weekData.days[dateKey];
+            const dateObj = new Date(dateKey);
+            const isToday = dateObj.toDateString() === now.toDateString();
+            const dayId = `day-${dateKey.replace(/\s/g, '-')}`;
+
+            const weekNum = getWeekNumber(dateObj);
+            const dayName = dateObj.toLocaleDateString('sv-SE', {weekday: 'long'});
+            const dayNameCap = dayName.charAt(0).toUpperCase() + dayName.slice(1);
+            const dateStr = dateObj.toLocaleDateString('sv-SE', {day: 'numeric', month: 'short'});
+
+            const shiftTypes = [...new Set(dayReports.map(r => r.shift))];
+            const shiftEmojis = shiftTypes.map(s =>
+              s === 'dag' ? '☀️' : (s === 'kvall' ? '🌆' : (s === 'natt' ? '🌙' : '⏰'))
+            ).join(' ');
+
+            const dayCard = document.createElement('div');
+            dayCard.style.cssText = 'margin-bottom:12px;border-radius:8px;background:rgba(255,255,255,0.04);border:1px solid var(--border);overflow:hidden;';
+
+            const content = document.createElement('div');
+            content.id = dayId;
+            content.style.cssText = isToday ? 'display:block;' : 'display:none;';
+
+            const header = document.createElement('div');
+            header.style.cssText = 'padding:10px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;background:rgba(255,255,255,0.02);user-select:none;position:relative;z-index:5;';
+            header.setAttribute('data-day-id', dayId);
+            header.title = 'Klicka för att expandera/kollapsa';
+
+            const headerLeft = document.createElement('div');
+            headerLeft.style.cssText = 'pointer-events:none;';
+            headerLeft.innerHTML = `<strong>${dayNameCap} ${dateStr} · V${weekNum}</strong>
+              <div class="tiny">${shiftEmojis} ${dayReports.length} skift${dayReports.length > 1 ? 'er' : ''}</div>`;
+
+            const headerIcon = document.createElement('span');
+            headerIcon.id = `${dayId}-icon`;
+            headerIcon.style.cssText = 'pointer-events:none;';
+            headerIcon.textContent = isToday ? '▼' : '▶';
+
+            header.appendChild(headerLeft);
+            header.appendChild(headerIcon);
+
+            dayReports.forEach(r => {
+              const m = mById[r.machineId];
+              const shiftEmoji = r.shift === 'dag' ? '☀️' : (r.shift === 'kvall' ? '🌆' : (r.shift === 'natt' ? '🌙' : '⏰'));
+              const row = document.createElement('div');
+              row.style.cssText = 'padding:10px;border-top:1px solid rgba(255,255,255,0.06);';
+              row.innerHTML = `<div class="tiny">${new Date(r.ts).toLocaleTimeString('sv-SE', {hour:'2-digit', minute:'2-digit'})} — ${shiftEmoji} ${r.shift?.toUpperCase()||''}</div>
+                <div class="tiny">ID: ${escapeHtml(r.operator||'')} · Signatur: ${escapeHtml(r.signature||'')}</div>
+                <div style="white-space:pre-wrap;margin-top:6px">${escapeHtml(r.text||'')}</div>`;
+              content.appendChild(row);
+            });
+
+            // Event handler will be handled by delegation
+
+            dayCard.appendChild(header);
+            dayCard.appendChild(content);
+            repList.appendChild(dayCard);
+          });
+        }
+      });
+
+      // Add event delegation for week/day clicks
+      repList._weekClickHandler = function(e) {
+        // Check if clicked on a week header
+        const weekTarget = e.target.closest('[data-week-id]');
+        if(weekTarget) {
+          e.preventDefault();
+          e.stopPropagation();
+          const weekId = weekTarget.getAttribute('data-week-id');
+          const weekContent = document.getElementById(weekId);
+          const weekIcon = document.getElementById(`${weekId}-icon`);
+
+          if(weekContent && weekIcon) {
+            const isHidden = weekContent.style.display === 'none' || weekContent.style.display === '';
+            weekContent.style.display = isHidden ? 'block' : 'none';
+            weekIcon.textContent = isHidden ? '▼' : '▶';
+          }
+          return;
+        }
+
+        // Check if clicked on a day header (both in weeks and current week)
+        const dayTarget = e.target.closest('[data-day-id]');
+        if(dayTarget) {
+          e.preventDefault();
+          e.stopPropagation();
+          const dayId = dayTarget.getAttribute('data-day-id');
+          const dayContent = document.getElementById(dayId);
+          const dayIcon = document.getElementById(`${dayId}-icon`);
+
+          if(dayContent && dayIcon) {
+            const isHidden = dayContent.style.display === 'none' || dayContent.style.display === '';
+            dayContent.style.display = isHidden ? 'block' : 'none';
+            dayIcon.textContent = isHidden ? '▼' : '▶';
+          }
+          return;
+        }
+      };
+
+      repList.addEventListener('click', repList._weekClickHandler);
+    }
+
+    const notesList = document.getElementById('operatorNotesList');
+    if(notesList){
+      notesList.innerHTML = '';
+      const cutoff7 = new Date(); cutoff7.setDate(cutoff7.getDate()-7);
+      const mById = Object.fromEntries(state.machines.map(m=>[m.id,m]));
+      const midN = selMachine.value;
+      const notesTitleEl = document.getElementById('operatorNotesTitle');
+      if(notesTitleEl){ const mSelN = state.machines.find(x=>x.id===midN); notesTitleEl.innerHTML = `<strong>Noteringar (7 dagar)</strong> — ${escapeHtml(mSelN?mSelN.name:(midN||''))}`; }
+      const notes = state.logs.filter(l=> l.type==='note' && l.meta?.machineId===midN && new Date(l.ts) >= cutoff7).slice().reverse();
+      if(notes.length===0){ notesList.innerHTML = '<div class="tiny">Inga noteringar</div>'; }
+      notes.forEach(l=>{
+        const m = mById[l.meta?.machineId];
+        const noteDate = new Date(l.ts);
+        const nowD = new Date();
+        const opId = getOperatorIdentity();
+
+        // Check if note was created during current shift and we're still in that shift
+        const noteShift = getShiftForNow(noteDate);
+        const isNoteFromToday = noteDate.toDateString() === nowD.toDateString();
+        const isInShiftTime = isWithinShiftTime(noteShift, nowD);
+        const isOwnNote = l.meta?.operator === opId;
+        const canEdit = isNoteFromToday && isInShiftTime && isOwnNote;
+
+        const row = document.createElement('div');
+        row.style.cssText='padding:8px;border-radius:8px;background:rgba(255,255,255,0.02);margin-bottom:6px;';
+        row.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:start">
+          <div style="flex:1">
+            <div class="tiny">${noteDate.toLocaleString()} — ID: ${escapeHtml(l.meta?.operator||'')}</div>
+            <strong>${escapeHtml(m?m.name:(l.meta?.machineId||''))}</strong>
+            <div style="white-space:pre-wrap;margin-top:6px">${escapeHtml(l.meta?.text||'')}</div>
+          </div>
+          ${canEdit ? `<div style="display:flex;gap:4px;margin-left:8px">
+            <button class="secondary" data-note-id="${l.id}" data-action="edit" style="padding:4px 8px;font-size:12px">Redigera</button>
+            <button class="danger" data-note-id="${l.id}" data-action="delete" style="padding:4px 8px;font-size:12px">Ta bort</button>
+          </div>` : ''}
+        </div>`;
+        notesList.appendChild(row);
+
+        // Add event listeners for edit/delete
+        if(canEdit){
+          const editBtn = row.querySelector('[data-action="edit"]');
+          const deleteBtn = row.querySelector('[data-action="delete"]');
+
+          if(editBtn){
+            editBtn.addEventListener('click', ()=>{
+              showModal('Redigera notering', `<div><label for="noteText">Notering</label><textarea id="noteText" style="width:100%;min-height:120px">${escapeHtml(l.meta?.text||'')}</textarea></div><div style="display:flex;justify-content:flex-end;margin-top:8px"><button id="saveNote" class="ok">Spara</button></div>`, (card)=>{
+                card.querySelector('#saveNote').addEventListener('click', ()=> {
+                  const text = card.querySelector('#noteText').value.trim();
+                  if(!text) { toast('Skriv något'); return; }
+                  l.meta.text = text;
+                  l.meta.lastModified = now();
+                  saveState(state);
+                  modalRoot.classList.add('hidden');
+                  modalRoot.innerHTML='';
+                  renderOperatorPublicPanels();
+                  toast('Notering uppdaterad');
+                });
+              });
+            });
+          }
+
+          if(deleteBtn){
+            deleteBtn.addEventListener('click', ()=>{
+              if(confirm('Ta bort denna notering?')){
+                state.logs = state.logs.filter(log => log.id !== l.id);
+                saveState(state);
+                renderOperatorPublicPanels();
+                toast('Notering borttagen');
+              }
+            });
+          }
+        }
+      });
+    }
+    if(repList) normalizeTypography(repList);
+    if(notesList) normalizeTypography(notesList);
+
+  }
+
+
+  // Task editor (admin): create/edit tasks
+  function openTaskEditor(taskData, onSaveCallback, isNew = false) {
+    const t = {
+      id: taskData.id || uid(),
+      machineId: taskData.machineId || (state.machines[0]?.id || ''),
+      title: taskData.title || '',
+      description: taskData.description || '',
+      checklistType: taskData.checklistType || (state.settings.checklistTypes?.[0]?.id || 'underhall'),
+      owner: taskData.owner || 'OP',
+      intervalKind: taskData.intervalKind || ((taskData.intervalDays||0)===0?'none':(taskData.intervalDays===1?'day':(taskData.intervalDays===7?'week':((taskData.intervalDays||0)>=180?'half_year':((taskData.intervalDays||0)>=28?'month':'day'))))),
+      totalCount: taskData.totalCount || 1,
+      images: Array.isArray(taskData.images) ? taskData.images.slice() : [],
+      videos: Array.isArray(taskData.videos) ? taskData.videos.slice() : []
+    };
+
+    const owners = [
+      {v:'OP', n:'OP'},
+      {v:'UH', n:'UH'},
+      {v:'OP+SKYDDSOMBUD', n:'OP+SKYDDSOMBUD'}
+    ];
+    const intervals = [
+      {v:'none', n:'Räknare'},
+      {v:'shift', n:'Skift'},
+      {v:'day', n:'Dag'},
+      {v:'week', n:'Vecka'},
+      {v:'month', n:'Månad'},
+      {v:'half_year', n:'Halvår'},
+      {v:'on_demand', n:'Vid behov'}
+    ];
+
+    const machineOpts = state.machines.map(m => `<option value="${m.id}" ${m.id===t.machineId?'selected':''}>${escapeHtml(m.name)}</option>`).join('');
+    const typeOpts = (state.settings.checklistTypes||[]).map(ct => `<option value="${ct.id}" ${ct.id===t.checklistType?'selected':''}>${escapeHtml(ct.name)}</option>`).join('');
+    const ownerOpts = owners.map(o => `<option value="${o.v}" ${o.v===t.owner?'selected':''}>${o.n}</option>`).join('');
+    const intervalOpts = intervals.map(i => `<option value="${i.v}" ${i.v===t.intervalKind?'selected':''}>${i.n}</option>`).join('');
+
+    const mediaList = () => {
+      let html = '';
+      if (t.images.length > 0) {
+        html += '<div style="margin-top:8px"><div class="tiny">Bilder:</div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px">';
+        t.images.forEach((img, i) => {
+          html += `<div style="position:relative;width:100px;height:80px">
+            <img src="${img}" style="width:100%;height:100%;object-fit:cover;border-radius:6px;border:1px solid var(--border)"/>
+            <button data-type="image" data-i="${i}" class="danger" style="position:absolute;top:2px;right:2px;padding:2px 6px;font-size:11px">✕</button>
+          </div>`;
+        });
+        html += '</div></div>';
+      }
+      if (t.videos.length > 0) {
+        html += '<div style="margin-top:8px"><div class="tiny">Videor:</div><div style="display:flex;flex-direction:column;gap:6px;margin-top:4px">';
+        t.videos.forEach((vid, i) => {
+          const name = vid.name || `Video ${i + 1}`;
+          const path = vid.path || vid;
+          html += `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px;border-radius:6px;background:var(--glass);border:1px solid var(--border)">
+            <div class="tiny">🎥 ${escapeHtml(name)}</div>
+            <button data-type="video" data-i="${i}" class="danger" style="padding:2px 6px;font-size:11px">Ta bort</button>
+          </div>`;
+        });
+        html += '</div></div>';
+      }
+      return html || '<div class="tiny muted" style="margin-top:4px">Inga bilder eller videor</div>';
+    };
+
+    const html = `
+      <div>
+        <label for="teMachine">Maskin</label>
+        <select id="teMachine" style="width:100%">${machineOpts}</select>
+      </div>
+      <div style="margin-top:8px">
+        <label for="teTitle">Titel</label>
+        <input id="teTitle" style="width:100%" value="${escapeHtml(t.title)}" />
+      </div>
+      <div style="margin-top:8px">
+        <label for="teDesc">Beskrivning</label>
+        <textarea id="teDesc" style="width:100%;min-height:100px">${escapeHtml(t.description)}</textarea>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+        <div style="flex:1;min-width:160px">
+          <label for="teType">Checklista-typ</label>
+          <select id="teType" style="width:100%">${typeOpts}</select>
+        </div>
+        <div style="flex:1;min-width:160px">
+          <label for="teOwner">Ansvarig</label>
+          <select id="teOwner" style="width:100%">${ownerOpts}</select>
+        </div>
+        <div style="flex:1;min-width:160px">
+          <label for="teInterval">Intervall</label>
+          <select id="teInterval" style="width:100%">${intervalOpts}</select>
+        </div>
+      </div>
+      <div id="teCounterWrap" style="margin-top:8px;${t.intervalKind==='none'?'':'display:none'}">
+        <label for="teTotal">Antal (Räknare)</label>
+        <input id="teTotal" type="number" min="1" value="${t.totalCount}" />
+      </div>
+      <div style="margin-top:12px">
+        <label>Media (Bilder & Videor)</label>
+        <div style="display:flex;gap:8px;margin-top:6px">
+          <input id="teImages" type="file" accept="image/*" multiple style="display:none" />
+          <button id="btnAddImages" class="secondary" style="flex:1">📷 Lägg till bilder</button>
+          <button id="btnAddVideoPath" class="secondary" style="flex:1">📁 Lägg till video-sökväg</button>
+        </div>
+        <div id="teMediaList">${mediaList()}</div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;margin-top:10px">
+        <button id="teSave" class="ok">${isNew?'Skapa':'Spara'}</button>
+      </div>
+    `;
+
+    showModal(isNew? 'Ny uppgift' : 'Redigera uppgift', html, (card) => {
+      const selInterval = card.querySelector('#teInterval');
+      const counterWrap = card.querySelector('#teCounterWrap');
+      const mediaListDiv = card.querySelector('#teMediaList');
+      const imagesInput = card.querySelector('#teImages');
+
+      selInterval.addEventListener('change', () => {
+        counterWrap.style.display = (selInterval.value === 'none') ? 'block' : 'none';
+      });
+
+      function renderMediaList() {
+        mediaListDiv.innerHTML = mediaList();
+        mediaListDiv.querySelectorAll('button[data-type]').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const type = btn.getAttribute('data-type');
+            const i = parseInt(btn.getAttribute('data-i'));
+            if (type === 'image' && !isNaN(i) && i >= 0 && i < t.images.length) {
+              t.images.splice(i, 1);
+              renderMediaList();
+            } else if (type === 'video' && !isNaN(i) && i >= 0 && i < t.videos.length) {
+              t.videos.splice(i, 1);
+              renderMediaList();
+            }
+          });
+        });
+      }
+
+      card.querySelector('#btnAddImages').addEventListener('click', () => imagesInput.click());
+
+      imagesInput.addEventListener('change', (e) => {
+        const files = Array.from(e.target.files || []);
+        if (!files.length) return;
+        const MAX_SIZE = 10 * 1024 * 1024; // 10MB per image
+        let remaining = files.length;
+        files.forEach(file => {
+          if (file.size > MAX_SIZE) {
+            toast(`Bilden ${file.name} är för stor (max 10MB)`);
+            remaining--;
+            if (remaining === 0) imagesInput.value = '';
+            return;
+          }
+          const reader = new FileReader();
+          reader.onload = (ev) => {
+            if (typeof ev.target.result === 'string' && ev.target.result.startsWith('data:image')) {
+              t.images.push(ev.target.result);
+            }
+            remaining--;
+            if (remaining === 0) {
+              renderMediaList();
+              imagesInput.value = '';
+            }
+          };
+          reader.onerror = () => {
+            toast('Kunde inte läsa bilden');
+            remaining--;
+            if (remaining === 0) imagesInput.value = '';
+          };
+          reader.readAsDataURL(file);
+        });
+      });
+
+      card.querySelector('#btnAddVideoPath').addEventListener('click', () => {
+        showModal('Lägg till video-sökväg', `
+          <div><label for="videoPath">Video-sökväg (t.ex. C:\\Users\\Videos\\maintenance.mp4)</label><input id="videoPath" style="width:100%" placeholder="C:\\Users\\Videos\\maintenance.mp4"/></div>
+          <div style="margin-top:8px"><label for="videoName">Namn (valfritt)</label><input id="videoName" style="width:100%" placeholder="Beskrivande namn för videon"/></div>
+          <div style="display:flex;justify-content:flex-end;margin-top:8px"><button id="addVideoBtn" class="ok">Lägg till video</button></div>
+        `, (modalCard) => {
+          modalCard.querySelector('#addVideoBtn').addEventListener('click', () => {
+            const path = (modalCard.querySelector('#videoPath').value || '').trim();
+            const name = (modalCard.querySelector('#videoName').value || '').trim() || path;
+            if (!path) { toast('Ange video-sökväg'); return; }
+            t.videos.push({ name, path });
+            renderMediaList();
+            document.getElementById('modalClose').click();
+          });
+        });
+      });
+
+      renderMediaList();
+
+      card.querySelector('#teSave').addEventListener('click', () => {
+        const machineId = card.querySelector('#teMachine').value;
+        const title = (card.querySelector('#teTitle').value||'').trim();
+        const description = (card.querySelector('#teDesc').value||'').trim();
+        const checklistType = card.querySelector('#teType').value;
+        const owner = card.querySelector('#teOwner').value;
+        const intervalKind = card.querySelector('#teInterval').value;
+        const totalCount = parseInt(card.querySelector('#teTotal')?.value || '1', 10) || 1;
+
+        if(!machineId){ toast('Välj maskin'); return; }
+        if(!title){ toast('Titel krävs'); return; }
+
+        const intervalDays = intervalKind==='day'?1: intervalKind==='week'?7: intervalKind==='month'?30: intervalKind==='half_year'?182: 0;
+
+        if(isNew){
+          const obj = {
+            id: t.id,
+            machineId,
+            title,
+            description,
+            checklistType,
+            owner,
+            intervalKind,
+            intervalDays,
+            totalCount: intervalKind==='none' ? totalCount : (taskData.totalCount||1),
+            doneCount: 0,
+            createdAt: now(),
+            images: t.images,
+            videos: t.videos
+          };
+          state.tasks = Array.isArray(state.tasks) ? state.tasks : [];
+          state.tasks.push(obj);
+        } else {
+          const ex = state.tasks.find(x => x.id === t.id);
+          if(ex){
+            ex.machineId = machineId;
+            ex.title = title;
+            ex.description = description;
+            ex.checklistType = checklistType;
+            ex.owner = owner;
+            ex.intervalKind = intervalKind;
+            ex.intervalDays = intervalDays;
+            if(intervalKind==='none') ex.totalCount = totalCount;
+            ex.images = t.images;
+            ex.videos = t.videos;
+          }
+        }
+        saveState(state);
+        toast(isNew ? 'Uppgift skapad' : 'Uppgift sparad');
+        if(typeof onSaveCallback === 'function') onSaveCallback();
+        document.getElementById('modalClose').click();
+      });
+    });
+  }
+
+  /* ------------------------
+     Actions
+     ------------------------ */
+  selChecklistType.addEventListener('change', ()=> { state.settings.lastChecklistType = selChecklistType.value; saveState(state); renderChecklistTypeChips(); renderTasks(); renderOperatorMiniStats(); renderOperatorPublicPanels(); });
+
+  // Calculate time remaining in current shift
+  function getTimeRemainingInShift(shift, now = new Date()){
+    const minutes = now.getHours()*60 + now.getMinutes();
+    let endMinutes;
+
+    if(shift === 'dag') endMinutes = 14*60 + 30;
+    else if(shift === 'kvall') endMinutes = 23*60 + 24;
+    else if(shift === 'natt') endMinutes = 6*60 + 6;
+    else return null; // overtime has no end
+
+    let remaining = endMinutes - minutes;
+    if(shift === 'natt' && minutes >= 0 && minutes < endMinutes){
+      // Night shift crosses midnight
+      remaining = endMinutes - minutes;
+    } else if(shift === 'natt'){
+      remaining = (24*60 - minutes) + endMinutes;
+    }
+
+    if(remaining < 0) return 0;
+    return remaining;
+  }
+
+  // Load existing shift report when opening shift tab
+  function loadShiftReportForCurrentShift(){
+    const mid = selMachine.value;
+    const opId = getOperatorIdentity();
+    if(!mid || !opId) return;
+
+    const shift = selShift.value;
+    const nowD = new Date();
+    const shiftTag = `${nowD.toDateString()}|${shift}`;
+    const existing = getExistingShiftReport(mid, opId, shiftTag);
+
+    const textarea = document.getElementById('shiftReportText');
+    const statusDiv = document.getElementById('shiftReportStatus');
+    const submitBtn = document.getElementById('btnSubmitShiftReport');
+
+    if(!textarea || !statusDiv || !submitBtn) return;
+
+    const isInShiftTime = isWithinShiftTime(shift, nowD);
+    const timeRemaining = getTimeRemainingInShift(shift, nowD);
+
+    if(existing){
+      textarea.value = existing.text || '';
+      if(isInShiftTime){
+        // Can edit during shift time
+        textarea.disabled = false;
+        submitBtn.disabled = false;
+        const timeWarning = timeRemaining && timeRemaining <= 30 ? ` — ⏰ ${timeRemaining} min kvar!` : '';
+        statusDiv.innerHTML = `<div class="tiny" style="color:var(--success)">✓ Skiftsrapport sparad — Du kan fortfarande redigera under detta skift${timeWarning}</div>`;
+      } else {
+        // Locked after shift time
+        textarea.disabled = true;
+        submitBtn.disabled = true;
+        statusDiv.innerHTML = '<div class="tiny" style="color:var(--warning)">🔒 Skiftsrapport låst — Skiftet är avslutat</div>';
+      }
+    } else {
+      textarea.value = '';
+      if(isInShiftTime){
+        textarea.disabled = false;
+        submitBtn.disabled = false;
+        const timeWarning = timeRemaining && timeRemaining <= 30 ? ` — ⏰ ${timeRemaining} min kvar!` : '';
+        const urgency = timeRemaining && timeRemaining <= 30 ? 'color:var(--danger);font-weight:700' : 'color:var(--warning)';
+        statusDiv.innerHTML = `<div class="tiny" style="${urgency}">⚠️ Ingen skiftsrapport ännu — Skriv och spara innan skiftet slutar${timeWarning}</div>`;
+      } else {
+        textarea.disabled = true;
+        submitBtn.disabled = true;
+        statusDiv.innerHTML = '<div class="tiny" style="color:var(--danger)">⚠️ Skiftet är avslutat — Kan inte skapa rapport</div>';
+      }
+    }
+  }
+
+  document.getElementById('btnSubmitShiftReport').addEventListener('click', ()=>{
+    const mid = selMachine.value; if(!mid){ toast('Välj maskin'); return; }
+    const opId = requireOperatorIdOrToast(); if(!opId) return;
+    const shift = selShift.value;
+    const checklistType = selChecklistType.value;
+    const text = (document.getElementById('shiftReportText')?.value || '').trim();
+    if(text.length < 3){ toast('Skriv skiftsrapport'); return; }
+
+    const nowD = new Date();
+    const shiftTag = `${nowD.toDateString()}|${shift}`;
+
+    // Check if still within shift time
+    if(!isWithinShiftTime(shift, nowD)){
+      toast('Skiftet är avslutat — Kan inte spara rapport');
+      return;
+    }
+
+    // Use operator ID as signature automatically
+    const sig = opId;
+
+    // Check if report already exists for this shift
+    const existing = getExistingShiftReport(mid, opId, shiftTag);
+
+    if(existing){
+      // Update existing report
+      existing.text = text;
+      existing.lastModified = now();
+      state.logs.push({id:uid(),type:'shift_report_updated',ts:now(),meta:{machineId:mid,operator: opId,shift,signature:sig}});
+      toast('Skiftsrapport uppdaterad');
+    } else {
+      // Create new report
+      const report = {id:uid(),machineId:mid,operator: opId,shift,checklistType,ts:now(),text,signature:sig,shiftTag};
+      state.reports.push(report);
+      state.logs.push({id:uid(),type:'shift_report',ts:now(),meta:{machineId:mid,operator: opId,shift,signature:sig}});
+      toast('Skiftsrapport sparad');
+    }
+
+    saveState(state);
+    renderRecentLogs(); renderOperatorPublicPanels();
+    loadShiftReportForCurrentShift(); // Refresh status
+  });
+  // Tabs: Checklista / Skiftsrapport / Senaste PM
+  const tabChecklist = document.getElementById('tabChecklist');
+  const tabShift = document.getElementById('tabShift');
+  const tabPm = document.getElementById('tabPm');
+  const tabBtnChecklist = document.getElementById('tabBtnChecklist');
+  const tabBtnShift = document.getElementById('tabBtnShift');
+  const tabBtnPm = document.getElementById('tabBtnPm');
+  function activateTab(name){
+    const isChecklist = name === 'checklist';
+    const isShift = name === 'shift';
+    const isPm = name === 'pm';
+    tabChecklist?.classList.toggle('hidden', !isChecklist);
+    tabShift?.classList.toggle('hidden', !isShift);
+    tabPm?.classList.toggle('hidden', !isPm);
+    tabBtnChecklist?.classList.toggle('ok', isChecklist);
+    tabBtnShift?.classList.toggle('ok', isShift);
+    tabBtnPm?.classList.toggle('ok', isPm);
+    if(isChecklist){ renderTasks(); renderOperatorMiniStats(); }
+    if(isPm){ renderPmsForOperator(); }
+    if(isShift){ loadShiftReportForCurrentShift(); }
+  }
+  tabBtnChecklist?.addEventListener('click', ()=> activateTab('checklist'));
+  tabBtnShift?.addEventListener('click', ()=> activateTab('shift'));
+  document.getElementById('tabBtnPm')?.addEventListener('click', ()=> activateTab('pm'));
+  activateTab('checklist');
+
+
+  document.getElementById('btnAddNote').addEventListener('click', ()=> {
+    showModal('Lägg till notering', `<div><label for=\"noteText\">Notering</label><textarea id=\"noteText\" style=\"width:100%;min-height:120px\"></textarea></div><div style=\"display:flex;justify-content:flex-end;margin-top:8px\"><button id=\"saveNote\" class=\"ok\">Spara</button></div>`, (card)=>{
+      card.querySelector('#saveNote').addEventListener('click', ()=> {
+        const text = card.querySelector('#noteText').value.trim(); if(!text) { toast('Skriv något'); return; }
+        const opId = requireOperatorIdOrToast(); if(!opId) return;
+        state.logs.push({id:uid(), type:'note', ts:now(), meta:{text, operator: opId, machineId: selMachine.value}});
+        saveState(state); modalRoot.classList.add('hidden'); modalRoot.innerHTML=''; renderRecentLogs(); renderOperatorPublicPanels(); toast('Notering sparad');
+      });
+    });
+  });
+
+  // admin controls
+  document.getElementById('btnNewMachine').addEventListener('click', ()=> {
+    showModal('Ny maskin', `<div><label for="nmName">Namn</label><input id="nmName" style="width:100%"/></div><div><label for="nmDesc">Beskrivning</label><input id="nmDesc" style="width:100%"/></div><div style="display:flex;justify-content:flex-end;margin-top:8px"><button id="nmSave" class="ok">Skapa</button></div>`, (card)=>{
+      card.querySelector('#nmSave').addEventListener('click', ()=> {
+        const name = card.querySelector('#nmName').value.trim(); const desc = card.querySelector('#nmDesc').value.trim();
+        if(!name){ toast('Namn krävs'); return; }
+        state.machines.push({id:uid(),name,desc}); saveState(state); modalRoot.classList.add('hidden'); modalRoot.innerHTML=''; renderMachines(); renderStats(); toast('Maskin skapad');
+      });
+    });
+  });
+
+  // Generate 14 days of test data
+  function generate14DaysTestData(){
+    if(!isAdmin()){ toast('Endast admin'); return; }
+
+    const confirmMsg = 'Generera 14 dagars testdata?\n\nDetta kommer skapa:\n- Skiftsrapporter för alla skift\n- Noteringar\n- Checklistor\n\nBefintlig data påverkas inte.';
+    if(!confirm(confirmMsg)) return;
+
+    const now = new Date();
+    const machines = state.machines.length > 0 ? state.machines : [{id:'m1', name:'DISKUS', desc:'Test maskin'}];
+    const operators = ['OP001', 'OP002', 'OP003', 'OP004', 'OP005'];
+    const shifts = ['natt', 'dag', 'kvall'];
+
+    const shiftReportTemplates = [
+      'Produktionen gick bra idag. Inga problem att rapportera.',
+      'Mindre stopp på grund av materialhantering. Åtgärdat efter 15 min.',
+      'Kvalitetskontroll utförd. Alla mått inom tolerans.',
+      'Verktyg bytte enligt schema. Ny batch startad kl 10:00.',
+      'Maskinen körde stabilt hela skiftet. Bra produktionstakt.',
+      'Mindre justering av inställningar behövdes. Nu OK.',
+      'Förebyggande underhåll utfört enligt plan.',
+      'Produktionsmål uppnått. Inga avvikelser.'
+    ];
+
+    const noteTemplates = [
+      'Observerade ovanligt ljud från motor. Bör kollas.',
+      'Oljebyte utfört enligt schema.',
+      'Ny operatör introducerad till maskinen.',
+      'Verktygsslitage noterat. Planera byte nästa vecka.',
+      'Temperatur något högre än normalt. Övervakas.',
+      'Rengöring utförd extra noggrant.',
+      'Säkerhetsrond genomförd utan anmärkningar.'
+    ];
+
+    let reportsAdded = 0;
+    let notesAdded = 0;
+    let checklistsAdded = 0;
+
+    // Generate data for last 14 days
+    for(let daysAgo = 13; daysAgo >= 0; daysAgo--){
+      const date = new Date(now);
+      date.setDate(date.getDate() - daysAgo);
+
+      // For each day, create shifts
+      shifts.forEach((shift, shiftIdx) => {
+        const machine = machines[Math.floor(Math.random() * machines.length)];
+        const operator = operators[Math.floor(Math.random() * operators.length)];
+
+        // Set appropriate time for shift
+        let shiftDate = new Date(date);
+        if(shift === 'natt') shiftDate.setHours(23, 30 + Math.floor(Math.random() * 30), 0, 0);
+        else if(shift === 'dag') shiftDate.setHours(6, 15 + Math.floor(Math.random() * 30), 0, 0);
+        else if(shift === 'kvall') shiftDate.setHours(14, 45 + Math.floor(Math.random() * 30), 0, 0);
+
+        const shiftTag = `${shiftDate.toDateString()}|${shift}`;
+
+        // Create shift report (80% chance)
+        if(Math.random() > 0.2){
+          const reportText = shiftReportTemplates[Math.floor(Math.random() * shiftReportTemplates.length)];
+          state.reports.push({
+            id: uid(),
+            machineId: machine.id,
+            operator: operator,
+            shift: shift,
+            checklistType: 'underhall',
+            ts: shiftDate.toISOString(),
+            text: reportText,
+            signature: operator,
+            shiftTag: shiftTag
+          });
+          reportsAdded++;
+        }
+
+        // Create notes (30% chance per shift)
+        if(Math.random() > 0.7){
+          const noteText = noteTemplates[Math.floor(Math.random() * noteTemplates.length)];
+          const noteDate = new Date(shiftDate);
+          noteDate.setMinutes(noteDate.getMinutes() + Math.floor(Math.random() * 120));
+
+          state.logs.push({
+            id: uid(),
+            type: 'note',
+            ts: noteDate.toISOString(),
+            meta: {
+              text: noteText,
+              operator: operator,
+              machineId: machine.id
+            }
+          });
+          notesAdded++;
+        }
+
+        // Create checklist completions (2-5 per shift)
+        const checklistCount = 2 + Math.floor(Math.random() * 4);
+        for(let i = 0; i < checklistCount; i++){
+          const checkDate = new Date(shiftDate);
+          checkDate.setMinutes(checkDate.getMinutes() + (i * 30) + Math.floor(Math.random() * 20));
+
+          state.logs.push({
+            id: uid(),
+            type: 'task_done',
+            ts: checkDate.toISOString(),
+            meta: {
+              machineId: machine.id,
+              taskId: `task-${i}`,
+              operator: operator,
+              comment: Math.random() > 0.7 ? 'Utförd enligt rutin' : ''
+            }
+          });
+          checklistsAdded++;
+        }
+      });
+    }
+
+    saveState(state);
+    renderAll();
+    toast(`✅ Genererade ${reportsAdded} rapporter, ${notesAdded} noteringar, ${checklistsAdded} checklistor över 14 dagar`);
+  }
+
+  // Generate old data (15-20 days ago) to test auto-export
+  function generateOldTestData(){
+    if(!isAdmin()){ toast('Endast admin'); return; }
+
+    const confirmMsg = 'Generera GAMMAL testdata (15-20 dagar sedan)?\n\nDetta kommer skapa data som är äldre än 14 dagar\nför att testa auto-export funktionen.\n\nNästa gång sidan laddas kommer denna data\natt exporteras automatiskt och sedan raderas.';
+    if(!confirm(confirmMsg)) return;
+
+    const now = new Date();
+    const machines = state.machines.length > 0 ? state.machines : [{id:'m1', name:'DISKUS', desc:'Test maskin'}];
+    const operators = ['OP001', 'OP002', 'OP003'];
+    const shifts = ['natt', 'dag', 'kvall'];
+
+    let reportsAdded = 0;
+    let notesAdded = 0;
+    let checklistsAdded = 0;
+
+    // Generate data for 15-20 days ago (will be auto-exported)
+    for(let daysAgo = 20; daysAgo >= 15; daysAgo--){
+      const date = new Date(now);
+      date.setDate(date.getDate() - daysAgo);
+
+      shifts.forEach((shift) => {
+        const machine = machines[0];
+        const operator = operators[Math.floor(Math.random() * operators.length)];
+
+        let shiftDate = new Date(date);
+        if(shift === 'natt') shiftDate.setHours(23, 30, 0, 0);
+        else if(shift === 'dag') shiftDate.setHours(6, 15, 0, 0);
+        else if(shift === 'kvall') shiftDate.setHours(14, 45, 0, 0);
+
+        const shiftTag = `${shiftDate.toDateString()}|${shift}`;
+
+        // Create shift report
+        state.reports.push({
+          id: uid(),
+          machineId: machine.id,
+          operator: operator,
+          shift: shift,
+          checklistType: 'underhall',
+          ts: shiftDate.toISOString(),
+          text: `GAMMAL DATA - Skiftsrapport från ${shift} skift. Detta är testdata som ska exporteras.`,
+          signature: operator,
+          shiftTag: shiftTag
+        });
+        reportsAdded++;
+
+        // Create note
+        state.logs.push({
+          id: uid(),
+          type: 'note',
+          ts: shiftDate.toISOString(),
+          meta: {
+            text: `GAMMAL DATA - Notering från ${shift} skift. Detta är testdata som ska exporteras.`,
+            operator: operator,
+            machineId: machine.id
+          }
+        });
+        notesAdded++;
+
+        // Create checklist
+        state.logs.push({
+          id: uid(),
+          type: 'task_done',
+          ts: shiftDate.toISOString(),
+          meta: {
+            machineId: machine.id,
+            taskId: 'test-task',
+            operator: operator,
+            comment: 'GAMMAL DATA - Checklista testdata'
+          }
+        });
+        checklistsAdded++;
+      });
+    }
+
+    saveState(state);
+    toast(`✅ Genererade ${reportsAdded} gamla rapporter, ${notesAdded} gamla noteringar, ${checklistsAdded} gamla checklistor\n\n⚠️ Ladda om sidan för att testa auto-export!`);
+  }
+
+  // Manual export trigger
+  function manualExportOldData(){
+    if(!isAdmin()){ toast('Endast admin'); return; }
+    autoExportOldData(true); // Force export even if already exported
+  }
+
+  // Clear only test/dummy data (data from last 14 days)
+  function clearTestData(){
+    if(!isAdmin()){ toast('Endast admin'); return; }
+
+    const confirmMsg = 'Radera testdata från senaste 14 dagarna?\n\nDetta kommer radera:\n- Skiftsrapporter från senaste 14 dagarna\n- Noteringar från senaste 14 dagarna\n- Checklistloggar från senaste 14 dagarna\n\nÄr du säker?';
+    if(!confirm(confirmMsg)) return;
+
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - 14);
+
+    const reportsBefore = state.reports.length;
+    const logsBefore = state.logs.length;
+
+    // Keep only data older than 14 days
+    state.reports = state.reports.filter(r => new Date(r.ts) < cutoff);
+    state.logs = state.logs.filter(l => new Date(l.ts) < cutoff);
+
+    const reportsDeleted = reportsBefore - state.reports.length;
+    const logsDeleted = logsBefore - state.logs.length;
+
+    saveState(state);
+    renderAll();
+    toast(`✅ Raderade ${reportsDeleted} rapporter och ${logsDeleted} loggar från senaste 14 dagarna`);
+  }
+
+  // Clear ALL data (including real data)
+  function clearAllData(){
+    if(!isAdmin()){ toast('Endast admin'); return; }
+
+    const confirmMsg = '⚠️⚠️⚠️ RADERA ALL DATA? ⚠️⚠️⚠️\n\nVARNING: Detta raderar ALLT:\n- Alla skiftsrapporter (även äldre än 14 dagar)\n- Alla noteringar\n- Alla checklistloggar\n- Maskiner\n- Uppgifter\n\nDenna åtgärd kan INTE ångras!\n\nÄr du ABSOLUT säker?';
+    if(!confirm(confirmMsg)) return;
+
+    const doubleCheck = prompt('Skriv "RADERA ALLT" för att bekräfta (versaler):');
+    if(doubleCheck !== 'RADERA ALLT') {
+      toast('Avbrutet');
+      return;
+    }
+
+    // Clear EVERYTHING
+    state.reports = [];
+    state.logs = [];
+    state.machines = [];
+    state.tasks = [];
+    state.settings.exportedArchives = [];
+
+    saveState(state);
+    renderAll();
+    toast('✅ All data raderad');
+  }
+
+  // Add buttons to admin panel for test data generation
+  const btnDemoSeed = document.getElementById('btnDemoSeed');
+  if(btnDemoSeed){
+    const testDataBtn = document.createElement('button');
+    testDataBtn.className = 'secondary';
+    testDataBtn.textContent = '🧪 Generera 14 dagars testdata';
+    testDataBtn.style.marginTop = '8px';
+    testDataBtn.addEventListener('click', generate14DaysTestData);
+    btnDemoSeed.parentElement.insertBefore(testDataBtn, btnDemoSeed.nextSibling);
+
+    const oldDataBtn = document.createElement('button');
+    oldDataBtn.className = 'secondary';
+    oldDataBtn.textContent = '📦 Generera gammal data (test export)';
+    oldDataBtn.style.marginTop = '4px';
+    oldDataBtn.addEventListener('click', generateOldTestData);
+    btnDemoSeed.parentElement.insertBefore(oldDataBtn, testDataBtn.nextSibling);
+
+    const exportBtn = document.createElement('button');
+    exportBtn.className = 'ok';
+    exportBtn.textContent = '📄 Exportera gammal data som PDF';
+    exportBtn.style.marginTop = '4px';
+    exportBtn.addEventListener('click', manualExportOldData);
+    btnDemoSeed.parentElement.insertBefore(exportBtn, oldDataBtn.nextSibling);
+
+    const clearTestBtn = document.createElement('button');
+    clearTestBtn.className = 'secondary';
+    clearTestBtn.textContent = '🧹 Radera testdata (14 dagar)';
+    clearTestBtn.style.marginTop = '12px';
+    clearTestBtn.style.backgroundColor = '#ff9800';
+    clearTestBtn.addEventListener('click', clearTestData);
+    btnDemoSeed.parentElement.insertBefore(clearTestBtn, exportBtn.nextSibling);
+
+    const clearAllBtn = document.createElement('button');
+    clearAllBtn.className = 'danger';
+    clearAllBtn.textContent = '⚠️ Radera ALL data';
+    clearAllBtn.style.marginTop = '4px';
+    clearAllBtn.style.backgroundColor = '#d32f2f';
+    clearAllBtn.addEventListener('click', clearAllData);
+    btnDemoSeed.parentElement.insertBefore(clearAllBtn, clearTestBtn.nextSibling);
+  }
+
+  document.getElementById('btnScheduleAnchors').addEventListener('click', ()=>{
+    if(!isAdmin()){ toast('Endast admin'); return; }
+    ensureScheduleAnchors();
+    const wd = [
+      {v:'', n:'Ingen (standard)'},
+      {v:'1', n:'Måndag'},
+      {v:'2', n:'Tisdag'},
+      {v:'3', n:'Onsdag'},
+      {v:'4', n:'Torsdag'},
+      {v:'5', n:'Fredag'},
+      {v:'6', n:'Lördag'},
+      {v:'0', n:'Söndag'}
+    ];
+    const rows = state.machines.map(m=>{
+      const cur = getWeekAnchorForMachine(m.id);
+      const opts = wd.map(o=>`<option value="${o.v}" ${String(cur??'')===o.v?'selected':''}>${o.n}</option>`).join('');
+      return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><div style="flex:1"><strong>${escapeHtml(m.name)}</strong><div class=\"tiny\">${escapeHtml(m.desc||'')}</div></div><div><select id=\"wk_${m.id}\">${opts}</select></div></div>`;
+    }).join('');
+    const html = `<div class=\"tiny\" style=\"margin-bottom:8px\">Välj veckodag då veckovisa uppgifter ska utföras per maskin. Tomt = standard (7 dagar från senaste utförande).</div>${rows}<div style=\"display:flex;justify-content:flex-end;margin-top:8px\"><button id=\"saSave\" class=\"ok\">Spara</button></div>`;
+    showModal('Tidsankare (produktionsplan)', html, (card)=>{
+      card.querySelector('#saSave').addEventListener('click', ()=>{
+        state.settings.scheduleAnchors = state.settings.scheduleAnchors || {};
+        state.machines.forEach(m=>{
+          const sel = card.querySelector(`#wk_${CSS.escape(m.id)}`);
+          if(!sel) return;
+          const val = sel.value;
+          if(val===''){
+            if(state.settings.scheduleAnchors[m.id]) delete state.settings.scheduleAnchors[m.id].week;
+            if(state.settings.scheduleAnchors[m.id] && Object.keys(state.settings.scheduleAnchors[m.id]).length===0){ delete state.settings.scheduleAnchors[m.id]; }
+          } else {
+            state.settings.scheduleAnchors[m.id] = state.settings.scheduleAnchors[m.id] || {};
+            state.settings.scheduleAnchors[m.id].week = parseInt(val,10);
+          }
+        });
+        saveState(state);
+        toast('Tidsankare sparade');
+        renderTasks(); renderStats();
+        document.getElementById('modalClose').click();
+      });
+    });
+  });
+
+  document.getElementById('btnManageTasks').addEventListener('click', ()=> {
+    // simple task manager: list tasks and add
+    let html = `<div style="display:flex;gap:8px;margin-bottom:8px"><select id="mtMachine">${state.machines.map(m=>`<option value="${m.id}">${escapeHtml(m.name)}</option>`).join('')}</select><button id="mtNew" class="ok">Ny uppgift</button></div><div id="mtList"></div>`;
+    showModal('Hantera uppgifter', html, (card)=>{
+      const mtList = card.querySelector('#mtList');
+      function refresh(){
+        const mid = card.querySelector('#mtMachine').value;
+        const rows = state.tasks.filter(t=>t.machineId === mid);
+        mtList.innerHTML = rows.map(t=>`<div style="padding:8px;border-radius:8px;background:rgba(255,255,255,0.02);margin-bottom:6px"><strong>${escapeHtml(t.title)}</strong><div class="tiny">${escapeHtml(t.description||'')}</div>
+          <div style="display:flex;gap:8px;margin-top:6px"><button data-id="${t.id}" class="secondary">Redigera</button><button data-id="${t.id}" class="danger">Ta bort</button></div></div>`).join('') || '<div class="tiny">Inga uppgifter</div>';
+        mtList.querySelectorAll('[data-id]').forEach(btn=>{
+          btn.addEventListener('click',(e)=>{
+            const id = btn.getAttribute('data-id');
+            if(btn.classList.contains('danger')){ if(confirm('Ta bort uppgift?')){ state.tasks = state.tasks.filter(x=>x.id!==id); saveState(state); refresh(); toast('Uppgift borttagen'); } }
+            else { const t = state.tasks.find(x=>x.id===id); openTaskEditor(t, refresh); }
+          });
+        });
+      }
+      card.querySelector('#mtMachine').addEventListener('change', refresh);
+      card.querySelector('#mtNew').addEventListener('click', ()=> {
+        const mid = card.querySelector('#mtMachine').value;
+        openTaskEditor({machineId:mid, title:'', description:'', checklistType:state.settings.checklistTypes[0].id, totalCount:1}, refresh, true);
+      });
+      refresh();
+    });
+  });
+
+  document.getElementById('btnManageOperators')?.addEventListener('click', ()=> {
+    let html = `<div style="display:flex;gap:8px;margin-bottom:8px"><button id="opNew" class="ok">Ny operatör</button></div><div id="opList"></div>`;
+    showModal('Hantera operatörer', html, (card)=>{
+      const opList = card.querySelector('#opList');
+      refresh();
+      function refresh(){
+        const ops = state.settings.operators || [];
+        opList.innerHTML = ops.map(o=>`<div style="padding:8px;border-radius:8px;background:rgba(255,255,255,0.02);margin-bottom:6px"><strong>${escapeHtml(o.id)}</strong> — ${escapeHtml(o.name||'')}<div style="display:flex;gap:8px;margin-top:6px"><button data-id="${o.id}" class="secondary">Redigera</button><button data-id="${o.id}" class="danger">Ta bort</button></div></div>`).join('') || '<div class="tiny">Inga operatörer</div>';
+        opList.querySelectorAll('[data-id]').forEach(btn=>{
+          const id = btn.getAttribute('data-id');
+          btn.addEventListener('click', ()=>{
+            if(btn.classList.contains('danger')){
+              if(confirm('Ta bort operatör?')){ state.settings.operators = (state.settings.operators||[]).filter(x=>x.id!==id); saveState(state); refresh(); renderOperatorSelect(); toast('Operatör borttagen'); }
+            } else {
+              const o = (state.settings.operators||[]).find(x=>x.id===id);
+              if(!o) return;
+              showModal('Redigera operatör', `<div><label for="opId">ID (numeriskt)</label><input id="opId" style="width:100%" value="${escapeHtml(o.id)}"/></div><div><label for="opName">Namn</label><input id="opName" style="width:100%" value="${escapeHtml(o.name||'')}"/></div><div style="display:flex;justify-content:flex-end;margin-top:8px"><button id="opSave" class="ok">Spara</button></div>`, (card2)=>{
+                card2.querySelector('#opSave').addEventListener('click', ()=>{
+                  const idNew = (card2.querySelector('#opId').value||'').trim();
+                  const name = (card2.querySelector('#opName').value||'').trim();
+                  if(!/^[0-9]+$/.test(idNew)){ toast('ID måste vara numeriskt'); return; }
+                  if(!name){ toast('Namn krävs'); return; }
+                  if(idNew !== o.id && (state.settings.operators||[]).some(x=>x.id===idNew)){ toast('ID finns redan'); return; }
+                  o.id = idNew; o.name = name; saveState(state); modalRoot.classList.add('hidden'); modalRoot.innerHTML=''; refresh(); renderOperatorSelect(); toast('Operatör uppdaterad');
+                });
+              });
+            }
+          });
+        });
+      }
+      card.querySelector('#opNew').addEventListener('click', ()=>{
+        showModal('Ny operatör', `<div><label for="opId">ID (numeriskt)</label><input id="opId" style="width:100%"/></div><div><label for="opName">Namn</label><input id="opName" style="width:100%"/></div><div style="display:flex;justify-content:flex-end;margin-top:8px"><button id="opSave" class="ok">Lägg till</button></div>`, (card2)=>{
+          card2.querySelector('#opSave').addEventListener('click', ()=>{
+            const id = (card2.querySelector('#opId').value||'').trim();
+            const name = (card2.querySelector('#opName').value||'').trim();
+            if(!/^[0-9]+$/.test(id)){ toast('ID måste vara numeriskt'); return; }
+            if(!name){ toast('Namn krävs'); return; }
+            if((state.settings.operators||[]).some(x=>x.id===id)){ toast('ID finns redan'); return; }
+            state.settings.operators = (state.settings.operators||[]).concat([{id, name}]); saveState(state); modalRoot.classList.add('hidden'); modalRoot.innerHTML=''; refresh(); renderOperatorSelect(); toast('Operatör tillagd');
+          });
+        });
+      });
+    });
+  });
+
+  // Hantera PM (admin)
+  document.getElementById('btnManagePms').addEventListener('click', ()=>{
+    if(!isAdmin()){ toast('Endast admin'); return; }
+    let html = `<div style="display:flex;gap:8px;margin-bottom:8px"><button id="pmNew" class="ok">Nytt PM</button></div><div id="pmList"></div>`;
+    showModal('Hantera PM', html, (card)=>{
+      const pmList = card.querySelector('#pmList');
+      function refreshPmList(){
+        const pms = state.pms || [];
+        const pmsSorted = pms.slice().sort((a,b)=>new Date(b.createdAt) - new Date(a.createdAt));
+        pmList.innerHTML = pmsSorted.map(pm => {
+          const machine = state.machines.find(m => m.id === pm.machineId);
+          const machineName = machine ? escapeHtml(machine.name) : 'Okänd maskin';
+          const readers = (pm.readBy||[]).length;
+          return `<div style="padding:8px;border-radius:8px;background:rgba(255,255,255,0.02);margin-bottom:6px">
+              <strong>${machineName}</strong>
+              <div class="tiny">${new Date(pm.createdAt).toLocaleString()} · Läsningar: ${readers}</div>
+              <div style="white-space:pre-wrap;margin-top:6px">${escapeHtml(pm.text)}</div>
+              <div style="display:flex;gap:8px;margin-top:6px">
+                  <button data-act="edit" data-id="${pm.id}" class="secondary">Redigera</button>
+                  <button data-act="del" data-id="${pm.id}" class="danger">Ta bort</button>
+              </div>
+          </div>`;
+        }).join('') || '<div class="tiny">Inga PM</div>';
+        pmList.querySelectorAll('button[data-act]')?.forEach(btn=>{
+          btn.addEventListener('click', ()=>{
+            const id = btn.getAttribute('data-id');
+            const act = btn.getAttribute('data-act');
+            if(act==='del'){
+              if(confirm('Ta bort PM?')){
+                state.pms = (state.pms||[]).filter(p=>p.id!==id);
+                saveState(state);
+                refreshPmList();
+                toast('PM borttaget');
+              }
+            } else if(act==='edit'){
+              const pm = (state.pms||[]).find(p=>p.id===id);
+              if(pm) openPmEditor(pm, refreshPmList, false);
+            }
+          });
+        });
+      }
+      card.querySelector('#pmNew').addEventListener('click', ()=>{
+        openPmEditor({}, refreshPmList, true);
+      });
+      refreshPmList();
+    });
+  });
+
+  document.getElementById('btnAssignMachine')?.addEventListener('click', ()=>{
+    if(!isAdmin()){ toast('Endast admin'); return; }
+    const opts = state.machines.map(m=>`<option value="${m.id}">${escapeHtml(m.name)}</option>`).join('');
+    showModal('Tilldela operatörsmaskin', `<div><label for="amSel">Maskin</label><select id="amSel" style="width:100%">${opts}</select></div>
+      <div style="display:flex;justify-content:flex-end;margin-top:8px"><button id="amSave" class="ok">Spara</button></div>`, (card)=>{
+      const sel = card.querySelector('#amSel');
+      if(state.settings.assignedMachineId){ sel.value = state.settings.assignedMachineId; }
+      card.querySelector('#amSave').addEventListener('click', ()=>{
+        const mid = sel.value || '';
+        state.settings.assignedMachineId = mid; saveState(state);
+        modalRoot.classList.add('hidden'); modalRoot.innerHTML='';
+        renderMachines(); selectedMachineUpdate(); renderTasks();
+        toast('Operatörsmaskin tilldelad');
+      });
+    });
+  });
+
+
+  document.getElementById('btnExport').addEventListener('click', ()=>{
+    if(!isAdmin()){ toast('Endast admin'); return; }
+    const payload = {exportedAt: now(), payload: state};
+    const blob = new Blob([JSON.stringify(payload,null,2)], {type:'application/json'});
+    const ts = new Date(); const pad=n=>String(n).padStart(2,'0');
+    const name = `mu_export_${ts.getFullYear()}${pad(ts.getMonth()+1)}${pad(ts.getDate())}_${pad(ts.getHours())}${pad(ts.getMinutes())}${pad(ts.getSeconds())}.json`;
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove();
+    toast('Data exporterad');
+  });
+
+  document.getElementById('btnQuickBackup').addEventListener('click', ()=>{
+    if(!isAdmin()){ toast('Endast admin'); return; }
+    const payload = {exportedAt: now(), payload: state};
+    const blob = new Blob([JSON.stringify(payload,null,2)], {type:'application/json'});
+    const ts = new Date(); const pad=n=>String(n).padStart(2,'0');
+    const name = `mu_backup_${ts.getFullYear()}${pad(ts.getMonth()+1)}${pad(ts.getDate())}_${pad(ts.getHours())}${pad(ts.getMinutes())}${pad(ts.getSeconds())}.json`;
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove();
+    toast('Backup nedladdad');
+  });
+
+  // Import operators (admin-only)
+  document.getElementById('btnImportOps').addEventListener('click', ()=>{
+    if(!isAdmin()){ toast('Endast admin'); return; }
+    document.getElementById('fileImportOps').click();
+  });
+  document.getElementById('fileImportOps').addEventListener('change', (e)=>{
+    if(!isAdmin()){ toast('Endast admin'); e.target.value=''; return; }
+    const f = e.target.files[0]; if(!f) return;
+    const r = new FileReader(); r.onload = (ev)=>{
+      try{
+        const parsed = JSON.parse(ev.target.result);
+        // Accept {settings:{operators:[...]}} or {operators:[...]} or [...] at root
+        const ops = Array.isArray(parsed) ? parsed
+          : (Array.isArray(parsed.operators) ? parsed.operators
+          : (parsed.settings && Array.isArray(parsed.settings.operators) ? parsed.settings.operators : null));
+        if(!ops){ toast('Ingen giltig operators-lista i filen'); return; }
+        state.settings = state.settings || {operators:[]};
+        const existing = new Map((state.settings.operators||[]).map(o=>[String(o.id||'').trim(), {id:String(o.id||'').trim(), name:o.name||''}]));
+        ops.forEach(o=>{
+          const idStr = String(o.id||'').trim();
+          if(!/^[0-9]+$/.test(idStr)) return; // enforce numeric IDs only
+          if(!existing.has(idStr)) existing.set(idStr, {id:idStr, name:(o.name||'')});
+        });
+        state.settings.operators = Array.from(existing.values());
+        saveState(state); renderOperatorSelect(); toast('Operatörer importerade');
+      }catch(err){ console.error(err); toast('Fel vid import av operatörer'); }
+    }; r.readAsText(f);
+  });
+
+  document.getElementById('btnOpsTemplate').addEventListener('click', ()=>{
+    if(!isAdmin()){ toast('Endast admin'); return; }
+    const template = { settings: { operators: [ { id: '1001', name: 'Anna' }, { id: '1002', name: 'Erik' } ] } };
+    const blob = new Blob([JSON.stringify(template,null,2)], {type:'application/json'});
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'operators_template.json'; document.body.appendChild(a); a.click(); a.remove();
+    toast('Mall nedladdad');
+  });
+
+  document.getElementById('btnImport').addEventListener('click', ()=> { if(!isAdmin()){ toast('Endast admin'); return; } document.getElementById('fileImport').click(); });
+  document.getElementById('fileImport').addEventListener('change', (e)=> {
+    if(!isAdmin()){ toast('Endast admin'); e.target.value=''; return; }
+
+    const f = e.target.files[0]; if(!f) return;
+    const r = new FileReader(); r.onload = (ev)=>{
+      try{
+        const parsed = JSON.parse(ev.target.result);
+        const src = parsed.payload ? parsed.payload : parsed;
+        showModal('Importera data', `<div class="tiny">Hur vill du importera?</div>
+          <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
+            <button id="impMerge" class="secondary">Lägg till</button>
+            <button id="impReplace" class="danger">Ersätt</button>
+          </div>`, (card)=>{
+          card.querySelector('#impMerge').addEventListener('click', ()=>{
+            mergePayloadIntoState(src);
+            modalRoot.classList.add('hidden'); modalRoot.innerHTML='';
+          });
+          card.querySelector('#impReplace').addEventListener('click', ()=>{
+            state = src; saveState(state); renderAll(); toast('Import (ersätt) lyckades');
+            modalRoot.classList.add('hidden'); modalRoot.innerHTML='';
+          });
+        });
+      }catch(err){ toast('Import fel', {timeout:4000}); }
+    }; r.readAsText(f);
+  });
+  // ---- Import helpers (merge) + Demodata ----
+  function normalizeName(s){ return (s||'').trim().toLowerCase(); }
+  function normalizeOwner(o){
+    const raw = (o||'').toString().trim(); const s = raw.toLowerCase();
+    if(raw==='OP' || raw==='UH' || raw==='OP+SKYDDSOMBUD') return raw;
+    if(s.startsWith('op+')) return 'OP+SKYDDSOMBUD';
+    if(s==='op' || s.startsWith('op')) return 'OP';
+    if(s.includes('uh') || s.includes('jj')) return 'UH';
+    return 'OP';
+  }
+  function normalizeInterval(k){
+    const s = (k||'').toString().toLowerCase();
+    if(s==='skift') return 'shift';
+    if(s==='dag') return 'day';
+    if(s==='vecka') return 'week';
+    if(s==='månad' || s==='manad') return 'month';
+    if(s==='halvår' || s==='halvar') return 'half_year';
+    if(s==='vid behov') return 'on_demand';
+    if(['none','shift','day','week','month','half_year','on_demand'].includes(s)) return s;
+    return 'none';
+  }
+  // ---- Drag & Drop import (admin only) ----
+  function extractOperatorsList(parsed){
+    if(Array.isArray(parsed)) return parsed;
+    if(parsed && Array.isArray(parsed.operators)) return parsed.operators;
+    if(parsed && parsed.settings && Array.isArray(parsed.settings.operators)) return parsed.settings.operators;
+    return null;
+  }
+  function mergeOperatorsList(ops){
+    if(!ops) return;
+    state.settings = state.settings || {operators:[]};
+    const existing = new Map((state.settings.operators||[]).map(o=>[String(o.id||'').trim(), {id:String(o.id||'').trim(), name:o.name||''}]));
+    ops.forEach(o=>{
+      const idStr = String(o.id||'').trim();
+      if(!/^[0-9]+$/.test(idStr)) return;
+      if(!existing.has(idStr)) existing.set(idStr, {id:idStr, name:(o.name||'')});
+    });
+    state.settings.operators = Array.from(existing.values());
+    saveState(state); renderOperatorSelect(); toast('Operatörer importerade (drag & drop)');
+  }
+  function handleDroppedParsed(parsed){
+    const ops = extractOperatorsList(parsed);
+    if(ops){ mergeOperatorsList(ops); return; }
+    const src = parsed && parsed.payload ? parsed.payload : parsed;
+    showModal('Importera data', `<div class="tiny">Hur vill du importera?</div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
+        <button id="impMerge" class="secondary">Lägg till</button>
+        <button id="impReplace" class="danger">Ersätt</button>
+      </div>`, (card)=>{
+      card.querySelector('#impMerge').addEventListener('click', ()=>{ mergePayloadIntoState(src); modalRoot.classList.add('hidden'); modalRoot.innerHTML=''; });
+      card.querySelector('#impReplace').addEventListener('click', ()=>{ state = src; saveState(state); renderAll(); toast('Import (ersätt) lyckades'); modalRoot.classList.add('hidden'); modalRoot.innerHTML=''; });
+    });
+  }
+  (function setupDragDrop(){
+    const overlay = document.createElement('div');
+    overlay.id='dropOverlay';
+    overlay.style.cssText='position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.5);z-index:9999;color:#fff;font-size:18px;';
+    overlay.innerHTML = '<div style="padding:16px 24px;border:1px dashed #fff;border-radius:12px;background:rgba(0,0,0,0.4)">Släpp JSON här (Data eller Operatörer)</div>';
+    document.body.appendChild(overlay);
+    let dragDepth = 0; let hideTimer = null;
+    function show(){ if(!isAdmin()) return; overlay.style.display='flex'; }
+    function hide(){ overlay.style.display='none'; }
+    window.addEventListener('dragenter', (e)=>{ if(!isAdmin()) return; e.preventDefault(); dragDepth++; show(); });
+    window.addEventListener('dragover', (e)=>{ if(!isAdmin()) return; e.preventDefault(); });
+    window.addEventListener('dragleave', (e)=>{ if(!isAdmin()) return; e.preventDefault(); dragDepth=Math.max(0,dragDepth-1); if(dragDepth===0){ hideTimer && clearTimeout(hideTimer); hideTimer=setTimeout(hide,150); } });
+    window.addEventListener('drop', (e)=>{
+      if(!isAdmin()) return; e.preventDefault(); dragDepth=0; hide();
+      const files = e.dataTransfer && e.dataTransfer.files ? e.dataTransfer.files : null;
+      if(!files || !files.length){ toast('Ingen fil släppt'); return; }
+      const f = files[0]; if(!/\.json$/i.test(f.name)){ toast('Endast JSON-filer stöds'); return; }
+      const r = new FileReader(); r.onload = (ev)=>{ try{ const parsed = JSON.parse(ev.target.result); handleDroppedParsed(parsed); } catch(err){ console.error(err); toast('Ogiltig JSON'); } };
+      r.readAsText(f);
+    });
+  })();
+
+  function mergePayloadIntoState(src){
+    const imported = src && src.payload ? src.payload : src;
+    // Merge operators if present in import
+    try{
+      const impOps = imported.settings && Array.isArray(imported.settings.operators) ? imported.settings.operators : null;
+      if(impOps){
+        state.settings = state.settings || {operators:[]};
+        const existing = new Map((state.settings.operators||[]).map(o=>[String(o.id||'').trim(), {id:String(o.id||'').trim(), name:o.name||''}]));
+        impOps.forEach(o=>{
+          const idStr = String(o.id||'').trim();
+          if(!/^[0-9]+$/.test(idStr)) return; // enforce numeric IDs
+          if(!existing.has(idStr)) existing.set(idStr, {id:idStr, name: (o.name||'')});
+        });
+        state.settings.operators = Array.from(existing.values());
+      }
+    }catch(e){ console.warn('Operatörer import: skip', e); }
+
+    if(!imported){ toast('Fel format', {timeout:4000}); return; }
+    state.machines = state.machines || []; state.tasks = state.tasks || [];
+    const nameToId = {}; const existingByName = {};
+    state.machines.forEach(m=> existingByName[normalizeName(m.name)] = m.id);
+    (imported.machines||[]).forEach(m=>{
+      const key = normalizeName(m.name); if(!key) return;
+      if(existingByName[key]) nameToId[key] = existingByName[key];
+      else { const id = uid(); state.machines.push({id, name:m.name, desc:m.desc||''}); existingByName[key]=id; nameToId[key]=id; }
+    });
+    const existingTasksKey = new Set(state.tasks.map(t=> `${t.machineId}|${normalizeName(t.title)}|${t.checklistType}`));
+    (imported.tasks||[]).forEach(t=>{
+      const im = (imported.machines||[]).find(mm=> mm.id===t.machineId);
+      const keyName = normalizeName(im?.name || '');
+      const machineId = nameToId[keyName] || state.machines.find(x=> normalizeName(x.name)===keyName)?.id;
+      if(!machineId) return;
+      const checklistType = t.checklistType || (state.settings.checklistTypes?.[0]?.id || 'underhall');
+      const dedupKey = `${machineId}|${normalizeName(t.title)}|${checklistType}`;
+      if(existingTasksKey.has(dedupKey)) return;
+      const owner = normalizeOwner(t.owner);
+      const intervalKind = normalizeInterval(t.intervalKind || t.interval);
+      const intervalDays = intervalKind==='day'?1: intervalKind==='week'?7: intervalKind==='month'?30: intervalKind==='half_year'?182: 0;
+      state.tasks.push({ id:uid(), machineId, title:t.title, description: t.description||'', checklistType, totalCount: t.totalCount||1, doneCount:0, createdAt:now(), intervalDays, intervalKind, owner, images: Array.isArray(t.images)?t.images:[], videos: Array.isArray(t.videos)?t.videos:[] });
+      existingTasksKey.add(dedupKey);
+    });
+    saveState(state); renderAll(); toast('Import (lägg till) lyckades');
+  }
+  function buildDemoData(){
+    const machines = [
+      {id:'m_dmg', name:'DMG', desc:''},
+      {id:'m_fav', name:'FAV', desc:''},
+      {id:'m_diskus', name:'DISKUS', desc:''}
+    ];
+    const items = [
+      {title:'Säkerhetskontroll', owner:'OP', interval:'Skift', checklist:'sakerhet'},
+      {title:'Kylvattenanläggning', owner:'OP', interval:'Skift'},
+      {title:'Invändig rengöring av maskinen', owner:'OP', interval:'Skift'},
+      {title:'Styrskenor och skruvar', owner:'OP', interval:'Dag'},
+      {title:'Centralsmörjning', owner:'OP', interval:'Vecka'},
+      {title:'Filter och slangar till kylvattenanläggning', owner:'OP', interval:'Vecka'},
+      {title:'Kylvätskekoncentration', owner:'OP', interval:'Vecka'},
+      {title:'Diamanter samt MIDA-givare', owner:'OP', interval:'Vecka'},
+      {title:'Hydrauliksystem', owner:'OP', interval:'Vecka'},
+      {title:'Drivrullar för styr-ring', owner:'OP', interval:'Vecka'},
+      {title:'Filter till kopplingsskåpets kylaggregat', owner:'OP', interval:'Vecka'},
+      {title:'Kontroll av vinkelpallyftare', owner:'OP', interval:'Vecka'},
+      {title:'Filter till spindelkylning', owner:'OP', interval:'Vecka'},
+      {title:'Nödstopp', owner:'OP+SKYDDSOMBUD', interval:'Månad', checklist:'sakerhet'},
+      {title:'Utsugsfilter', owner:'UH', interval:'Vid behov'},
+      {title:'Strömningsvakt', owner:'UH', interval:'Vid behov'},
+      {title:'Kuggrem och drev', owner:'UH', interval:'Halvår'},
+      {title:'Lyftanordningar', owner:'UH', interval:'Halvår', description:'Ansvarig: JJ. grp'}
+    ];
+    const tasks = [];
+    machines.forEach(m=>{
+      items.forEach(it=>{
+        tasks.push({ machineId:m.id, title:it.title, description: it.description||'', checklistType: it.checklist||'underhall', owner: it.owner, interval: it.interval });
+      });
+    });
+    return { machines, tasks };
+  }
+  document.getElementById('btnDemoSeed')?.addEventListener('click', ()=>{
+    if(!isAdmin()){ toast('Endast admin'); return; }
+    if(!confirm('\u00c5terst\u00e4lla standarddataset? Detta ers\u00e4tter nuvarande data.')) return;
+    const demo = buildDemoData();
+    state = defaultState(); // clear
+    mergePayloadIntoState(demo);
+    toast('\u00c5terst\u00e4llt till standarddata');
+  });
+
+  document.getElementById('btnClean').addEventListener('click', ()=> {
+    if(!confirm('Rensa rapporter & loggar äldre än retention-dagar?')) return;
+    const days = parseInt(document.getElementById('retentionDays').value) || state.settings.retentionDays || DEFAULTS.retentionDefault;
+    const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - days);
+    state.logs = state.logs.filter(l => new Date(l.ts) >= cutoff);
+    state.reports = state.reports.filter(r => new Date(r.ts) >= cutoff);
+    saveState(state); renderRecentLogs(); toast('Rensning gjord');
+  });
+
+  // Visa skiftsrapporter (admin)
+  document.getElementById('btnViewShiftReports').addEventListener('click', ()=> {
+    const days = state.settings.retentionDays || DEFAULTS.retentionDefault;
+    const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - days);
+    const reports = state.reports.filter(r=> new Date(r.ts) >= cutoff);
+    const mById = Object.fromEntries(state.machines.map(m=>[m.id, m]));
+    const html = reports.length
+      ? reports.slice().reverse().map(r=>{
+          const m = mById[r.machineId];
+          return `<div style=\"padding:8px;border-radius:8px;background:rgba(255,255,255,0.02);margin-bottom:6px\">
+            <div class=\"tiny\">${new Date(r.ts).toLocaleString()} — ${r.shift.toUpperCase()}</div>
+            <strong>${escapeHtml(m?m.name:r.machineId)}</strong>
+            <div class=\"tiny\">ID: ${escapeHtml(r.operator||'')} · Signatur: ${escapeHtml(r.signature||'')}</div>
+            <div style=\"white-space:pre-wrap;margin-top:6px\">${escapeHtml(r.text||'')}</div>
+          </div>`;
+        }).join('')
+      : '<div class="tiny">Inga rapporter</div>';
+    showModal('Skiftsrapporter (14 dagar)', `<div style="max-height:60vh;overflow:auto">${html}</div>`, ()=>{});
+  });
+
+
+  // PDF export helpers
+  function openPrintWindow(title, html){
+    const w = window.open('', '_blank');
+    if(!w){ toast('Pop-up blocker? Tillåt popup'); return; }
+    w.document.write(`<!doctype html><html lang="sv"><head><meta charset="utf-8"/><title>${title}</title><style>
+      body{font-family:ui-sans-serif,system-ui,Segoe UI,Arial;padding:20px;color:#111}
+      h1,h2,h3{margin:0 0 8px 0}
+      .tiny{color:#555;font-size:12px}
+      .section{margin-top:16px;padding-top:8px;border-top:1px solid #ddd}
+      .row{padding:6px 0;border-bottom:1px solid #eee}
+      .muted{color:#666}
+    </style></head><body>
+    <h1>${title}</h1>
+    ${html}
+    </body></html>`);
+    w.document.close();
+    w.focus();
+    w.print();
+  }
+
+  // Open data:application/pdf in a new tab with an iframe and one-time refresh to handle blank loads
+  function openPdfInNewTab(dataUrl, fileName){
+    try{
+      const w = window.open('', '_blank');
+      if(!w){ toast('Pop-up blocker? Tillåt popup'); return; }
+      const safeName = (fileName || 'Bilaga.pdf').toString().slice(0,120);
+      const page = `<!doctype html><html lang="sv"><head><meta charset="utf-8"><title>${safeName}</title><style>html,body{height:100%;margin:0;background:#0b0f14} iframe{border:0;width:100%;height:100%}</style></head><body>
+        <iframe src="${dataUrl}" title="${safeName}" aria-label="${safeName}"></iframe>
+        <script>
+          setTimeout(function(){ var f = document.querySelector('iframe'); if(f){ f.src = f.src; } }, 250);
+        <\/script>
+      </body></html>`;
+      w.document.open(); w.document.write(page); w.document.close();
+    }catch(e){
+      // Fallback to default behavior
+      window.open(dataUrl, '_blank');
+    }
+  }
+
+  // Convert video URLs to embeddable formats for iframe
+  function getVideoEmbedUrl(url) {
+    if (!url) return null;
+
+    // YouTube
+    const youtubeMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/);
+    if (youtubeMatch) {
+      return `https://www.youtube.com/embed/${youtubeMatch[1]}`;
+    }
+
+    // Vimeo
+    const vimeoMatch = url.match(/vimeo\.com\/(?:video\/)?(\d+)/);
+    if (vimeoMatch) {
+      return `https://player.vimeo.com/video/${vimeoMatch[1]}`;
+    }
+
+    // Direct video files (mp4, webm, etc.)
+    if (url.match(/\.(mp4|webm|ogg)$/i)) {
+      return null; // Return null to show as link instead of iframe
+    }
+
+    return null; // Unknown format, show as link
+  }
+
+  // Play video from local file path
+  function playVideo(filePath) {
+    try {
+      // For security reasons, browsers don't allow direct file path access
+      // We'll show a modal with instructions instead
+      showModal('Spela video', `
+        <div style="text-align:center;padding:20px;">
+          <div class="tiny" style="margin-bottom:16px;">Video: ${escapeHtml(filePath)}</div>
+          <div class="tiny" style="margin-bottom:12px;">För att spela videon:</div>
+          <ol style="text-align:left;margin:12px 0;">
+            <li>Öppna din filhanterare</li>
+            <li>Navigera till: ${escapeHtml(filePath)}</li>
+            <li>Dubbelklicka på videofilen</li>
+          </ol>
+          <div class="tiny" style="margin-top:16px;color:var(--muted);">Eller kopiera sökvägen och öppna i din mediaspelare</div>
+          <div style="margin-top:12px;">
+            <button onclick="navigator.clipboard.writeText('${escapeHtml(filePath)}')" class="secondary" style="margin-right:8px;">Kopiera sökväg</button>
+            <button onclick="document.getElementById('modalClose').click()" class="ok">Stäng</button>
+          </div>
+        </div>
+      `, () => {
+        // Auto-copy path to clipboard when modal opens
+        setTimeout(() => {
+          navigator.clipboard.writeText(filePath).then(() => {
+            toast('Sökväg kopierad till urklipp');
+          }).catch(() => {
+            // Fallback for browsers that don't support clipboard API
+          });
+        }, 100);
+      });
+    } catch (e) {
+      toast('Kunde inte öppna video');
+    }
+  }
+
+  function buildReportHtml(days){
+    const taskById = Object.fromEntries(state.tasks.map(t=>[t.id, t]));
+    const cutoff = new Date(); cutoff.setDate(cutoff.getDate()-days);
+    const mById = Object.fromEntries(state.machines.map(m=>[m.id,m]));
+    const logs = state.logs.filter(l=> new Date(l.ts) >= cutoff);
+    const reports = state.reports.filter(r=> new Date(r.ts) >= cutoff);
+
+    const machinesHtml = state.machines.map(m=>
+      `<div class="row"><strong>${escapeHtml(m.name)}</strong><div class="tiny">${escapeHtml(m.desc||'')}</div></div>`
+    ).join('') || '<div class="tiny muted">Inga maskiner</div>';
+
+    const doneLogs = logs.filter(l=> l.type==='task_done');
+    const doneHtml = doneLogs.length ? doneLogs.slice().reverse().map(l=>{
+      const m = mById[l.meta?.machineId];
+      const t = taskById[l.meta?.taskId];
+      const taskLabel = t ? t.title : (l.meta?.taskTitle || l.meta?.taskId || '');
+      return `<div class="row"><div class="tiny">${new Date(l.ts).toLocaleString()}</div>
+        <div><strong>${escapeHtml(m?m.name:(l.meta?.machineId||''))}</strong> — Uppgift: ${escapeHtml(taskLabel)} · ID: ${escapeHtml(l.meta?.operator||'')}</div></div>`;
+    }).join('') : '<div class="tiny muted">Inga utförda uppgifter</div>';
+
+    const repHtml = reports.length ? reports.slice().reverse().map(r=>{
+      const m = mById[r.machineId];
+      return `<div class="row"><div class="tiny">${new Date(r.ts).toLocaleString()} — ${r.shift?.toUpperCase()||''}</div>
+        <div><strong>${escapeHtml(m?m.name:r.machineId)}</strong> · ID: ${escapeHtml(r.operator||'')} · Signatur: ${escapeHtml(r.signature||'')}</div>
+        <div style="white-space:pre-wrap" class="muted">${escapeHtml(r.text||'')}</div></div>`;
+    }).join('') : '<div class="tiny muted">Inga skiftsrapporter</div>';
+
+    const notes = logs.filter(l=> l.type==='note');
+    const notesHtml = notes.length ? notes.slice().reverse().map(l=>{
+      const m = mById[l.meta?.machineId];
+      return `<div class="row"><div class="tiny">${new Date(l.ts).toLocaleString()}</div>
+        <div><strong>${escapeHtml(m?m.name:(l.meta?.machineId||''))}</strong></div>
+        <div style="white-space:pre-wrap" class="muted">${escapeHtml(l.meta?.text||'')}</div></div>`;
+    }).join('') : '<div class="tiny muted">Inga noteringar</div>';
+
+    return `
+      <div class="section"><h2>Maskiner</h2>${machinesHtml}</div>
+      <div class="section"><h2>Utförda uppgifter (senaste ${days} dagar)</h2>${doneHtml}</div>
+      <div class="section"><h2>Skiftsrapporter (senaste ${days} dagar)</h2>${repHtml}</div>
+      <div class="section"><h2>Noteringar (senaste ${days} dagar)</h2>${notesHtml}</div>
+    `;
+  }
+
+  // Filtered report builder (per maskin)
+  function buildReportHtmlFiltered(days, machineId){
+    const taskById = Object.fromEntries(state.tasks.map(t=>[t.id, t]));
+    const cutoff = new Date(); cutoff.setDate(cutoff.getDate()-days);
+    const mById = Object.fromEntries(state.machines.map(m=>[m.id,m]));
+    const filterMid = machineId && machineId !== '__ALL__' ? machineId : null;
+    const logs = state.logs.filter(l=> new Date(l.ts) >= cutoff && (!filterMid || l.meta?.machineId === filterMid));
+    const reports = state.reports.filter(r=> new Date(r.ts) >= cutoff && (!filterMid || r.machineId === filterMid));
+
+    const machines = filterMid ? state.machines.filter(m=> m.id===filterMid) : state.machines;
+    const machinesHtml = machines.map(m=>
+      `<div class="row"><strong>${escapeHtml(m.name)}</strong><div class="tiny">${escapeHtml(m.desc||'')}</div></div>`
+    ).join('') || '<div class="tiny muted">Inga maskiner</div>';
+
+    const doneLogs = logs.filter(l=> l.type==='task_done');
+    const doneHtml = doneLogs.length ? doneLogs.slice().reverse().map(l=>{
+      const m = mById[l.meta?.machineId];
+      const t = taskById[l.meta?.taskId];
+      const taskLabel = t ? t.title : (l.meta?.taskTitle || l.meta?.taskId || '');
+      return `<div class="row"><div class="tiny">${new Date(l.ts).toLocaleString()}</div>
+        <div><strong>${escapeHtml(m?m.name:(l.meta?.machineId||''))}</strong> — Uppgift: ${escapeHtml(taskLabel)} · ID: ${escapeHtml(l.meta?.operator||'')}</div></div>`;
+    }).join('') : '<div class="tiny muted">Inga utförda uppgifter</div>';
+
+    const repHtml = reports.length ? reports.slice().reverse().map(r=>{
+      const m = mById[r.machineId];
+      return `<div class="row"><div class="tiny">${new Date(r.ts).toLocaleString()} — ${r.shift?.toUpperCase()||''}</div>
+        <div><strong>${escapeHtml(m?m.name:r.machineId)}</strong> · ID: ${escapeHtml(r.operator||'')} · Signatur: ${escapeHtml(r.signature||'')}</div>
+        <div style="white-space:pre-wrap" class="muted">${escapeHtml(r.text||'')}</div></div>`;
+    }).join('') : '<div class="tiny muted">Inga skiftsrapporter</div>';
+
+    const notes = logs.filter(l=> l.type==='note');
+    const notesHtml = notes.length ? notes.slice().reverse().map(l=>{
+      const m = mById[l.meta?.machineId];
+      return `<div class="row"><div class="tiny">${new Date(l.ts).toLocaleString()}</div>
+        <div><strong>${escapeHtml(m?m.name:(l.meta?.machineId||''))}</strong></div>
+        <div style="white-space:pre-wrap" class="muted">${escapeHtml(l.meta?.text||'')}</div></div>`;
+    }).join('') : '<div class="tiny muted">Inga noteringar</div>';
+
+    return `
+      <div class="section"><h2>Maskiner</h2>${machinesHtml}</div>
+      <div class="section"><h2>Utförda uppgifter (senaste ${days} dagar)</h2>${doneHtml}</div>
+      <div class="section"><h2>Skiftsrapporter (senaste ${days} dagar)</h2>${repHtml}</div>
+      <div class="section"><h2>Noteringar (senaste ${days} dagar)</h2>${notesHtml}</div>
+    `;
+  }
+
+  function chooseMachineThenExport(days, baseTitle){
+    const opts = ['<option value="__ALL__">Alla maskiner</option>'].concat(
+      state.machines.map(m=> `<option value="${m.id}">${escapeHtml(m.name)}</option>`)
+    ).join('');
+    showModal('Exportera PDF', `<div><label>Maskin</label><select id="expMachine" style="width:100%">${opts}</select></div>
+      <div style="display:flex;justify-content:flex-end;margin-top:8px"><button id="expGo" class="ok">Skapa</button></div>`, (card)=>{
+      card.querySelector('#expGo').addEventListener('click', ()=>{
+        const mid = card.querySelector('#expMachine').value;
+        const html = buildReportHtmlFiltered(days, mid);
+        const name = mid==='__ALL__' ? '' : ' — ' + (state.machines.find(m=>m.id===mid)?.name || mid);
+        openPrintWindow(baseTitle + name, html);
+        modalRoot.classList.add('hidden'); modalRoot.innerHTML='';
+      });
+    });
+  }
+
+
+  function exportPdfAllData(){
+    const days = state.settings.retentionDays || DEFAULTS.retentionDefault;
+    const html = buildReportHtml(days);
+    openPrintWindow(`MU Export (PDF) — ${days} dagar`, html);
+  }
+  function exportWeeklyReport(){
+    const html = buildReportHtml(7);
+    openPrintWindow('MU Veckorapport (7 dagar)', html);
+  }
+
+  document.getElementById('btnExportPdf')?.addEventListener('click', ()=>{
+    const days = state.settings.retentionDays || DEFAULTS.retentionDefault;
+    chooseMachineThenExport(days, `MU Export (PDF) — ${days} dagar`);
+  });
+  document.getElementById('btnWeeklyReport')?.addEventListener('click', ()=>{
+    chooseMachineThenExport(7, 'MU Veckorapport (7 dagar)');
+  });
+
+  /* ------------------------
+     Sessions & access control
+     ------------------------ */
+  function uid(n=8){ return Math.random().toString(36).slice(2,2+n); }
+  function now(){ return new Date().toISOString(); }
+  function escapeHtml(s=''){ return (s+'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+  function setSession(sess){
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify(sess));
+    applyAccessControl();
+  }
+  function getSession(){ try{ return JSON.parse(sessionStorage.getItem(SESSION_KEY)||'null'); }catch(e){ return null; } }
+  function isAdmin(){ const s = getSession(); return s && s.role === 'admin'; }
+
+  // admin login modal
+  document.getElementById('btnLogin').addEventListener('click', ()=> {
+    showModal('Admininloggning', `<div><label for="admUser">Användarnamn</label><input id="admUser" value="${DEFAULTS.adminUser}" style="width:100%"/></div><div><label for="admPass">Lösenord</label><input id="admPass" type="password" style="width:100%"/></div><div style="display:flex;justify-content:flex-end;margin-top:8px"><button id="admBtn" class="ok">Logga in</button></div>`, (card)=>{
+      card.querySelector('#admBtn').addEventListener('click', async ()=>{
+        const user = card.querySelector('#admUser').value.trim(); const pass = card.querySelector('#admPass').value;
+        const stored = localStorage.getItem('mu_admin_hash');
+        const got = await hashString(pass);
+        if(user === DEFAULTS.adminUser && got === stored){ setSession({role:'admin', user, ts:now()}); modalRoot.classList.add('hidden'); modalRoot.innerHTML=''; toast('Inloggad som admin'); }
+        else toast('Fel användarnamn eller lösenord', {timeout:3000});
+      });
+    });
+  });
+
+
+  // logout
+  document.getElementById('btnLogout').addEventListener('click', ()=> {
+    sessionStorage.removeItem(SESSION_KEY);
+    renderAll();
+    applyAccessControl();
+    toast('Utloggad');
+  });
+
+  // theme toggle
+  document.getElementById('toggleTheme').addEventListener('click', ()=> {
+    const root = document.body;
+    const current = root.getAttribute('data-theme') || state.settings.theme || 'dark';
+    const next = current === 'dark' ? 'light' : 'dark';
+    root.setAttribute('data-theme', next); state.settings.theme = next; saveState(state); renderAll();
+  });
+  // load theme
+  document.body.setAttribute('data-theme', state.settings.theme || 'dark');
+
+  // apply access control
+  function applyAccessControl(){
+    const session = getSession();
+    const is_admin = isAdmin();
+    // Admin panel
+    adminPanel.style.display = is_admin ? 'block' : 'none';
+    autosaveInfo.textContent = is_admin ? 'Autosave: aktiv (admin)' : 'Autosave: inaktiv';
+    if(is_admin) startAutosave(); else stopAutosave();
+    // Dashboard visible only for admin
+    const panelDash = document.getElementById('panelDashboard');
+    if(panelDash) panelDash.style.display = is_admin ? 'block' : 'none';
+
+
+
+    maybeShowFirstRunWizard();
+
+  function maybeShowFirstRunWizard(){
+    try{
+      if(!isAdmin()) return;
+      state.settings = state.settings || {};
+      if(state.settings.firstRunDone) return;
+      const hasMachines = (state.machines||[]).length>0;
+      const hasAssigned = !!(state.settings.assignedMachineId);
+      const assignDisabled = !hasMachines ? 'disabled style="opacity:0.6"' : '';
+      showModal('Första konfiguration', `
+        <div class="tiny">Gör dessa steg för att komma igång:</div>
+        <ol class="tiny" style="margin-top:6px">
+          <li>Importera JSON (maskiner/uppgifter/operatörer) eller återställ standarddata</li>
+          <li>Tilldela operatörsmaskin (operatörer ser endast en maskin)</li>
+        </ol>
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px;flex-wrap:wrap">
+          <button id="frImport" class="secondary">Importera JSON…</button>
+          <button id="frRestore" class="danger">Återställ standarddata</button>
+          <button id="frAssign" class="secondary" ${assignDisabled}>Tilldela operatörsmaskin</button>
+          <button id="frDone" class="ok">Jag är klar</button>
+        </div>
+      `, (card)=>{
+        card.querySelector('#frImport').addEventListener('click', ()=>{
+          const btn = document.getElementById('btnImport'); if(btn) btn.click();
+        });
+        card.querySelector('#frRestore').addEventListener('click', ()=>{
+          const btn = document.getElementById('btnDemoSeed'); if(btn) btn.click();
+        });
+        const assignBtn = card.querySelector('#frAssign');
+        if(assignBtn && hasMachines){ assignBtn.addEventListener('click', ()=>{
+          const btn = document.getElementById('btnAssignMachine'); if(btn) btn.click();
+        }); }
+        card.querySelector('#frDone').addEventListener('click', ()=>{
+          state.settings.firstRunDone = true; saveState(state);
+          modalRoot.classList.add('hidden'); modalRoot.innerHTML='';
+          toast('Förstakonfiguration klar');
+        });
+      });
+    }catch(e){ /* no-op */ }
+  }
+
+    // Logout button visibility
+    const btnLogout = document.getElementById('btnLogout');
+    if(btnLogout){ btnLogout.classList.toggle('hidden', !session); }
+    // Hide checklist type for operators
+    const ctWrap = document.getElementById('checklistTypeWrap');
+    if(ctWrap){ ctWrap.style.display = is_admin ? 'block' : 'none'; }
+    // Re-render machines to ensure edit buttons follow role
+    renderMachines();
+    renderRecentLogs();
+    renderOperatorPublicPanels();
+    renderPmsForOperator();
+  }
+
+
+  /* ------------------------
+     Autosave (only for admin)
+     ------------------------ */
+  let autosaveTimer = null;
+  function startAutosave(){
+    if(autosaveTimer) return;
+    autosaveTimer = setInterval(()=>{ saveState(state); document.getElementById('autosaveInfo').textContent = 'Autosave: ' + (new Date()).toLocaleTimeString(); }, DEFAULTS.autosaveMs);
+  }
+  function stopAutosave(){ if(autosaveTimer){ clearInterval(autosaveTimer); autosaveTimer = null; } }
+
+  /* ------------------------
+     Utility & init
+     ------------------------ */
+  /* ------------------------
+     Auto-export old data to PDF before deletion
+     ------------------------ */
+  async function autoExportOldData(forceExport = false){
+    const days = state.settings.retentionDays || DEFAULTS.retentionDefault;
+    const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - days);
+
+    // Find data that will be deleted
+    const oldReports = state.reports.filter(r => new Date(r.ts) < cutoff);
+    const oldNotes = state.logs.filter(l => l.type === 'note' && new Date(l.ts) < cutoff);
+    const oldTaskLogs = state.logs.filter(l => l.type === 'task_done' && new Date(l.ts) < cutoff);
+
+    if(oldReports.length === 0 && oldNotes.length === 0 && oldTaskLogs.length === 0){
+      if(forceExport) toast('Ingen gammal data att exportera');
+      return;
+    }
+
+    // Check if already exported (track by date range)
+    state.settings.exportedArchives = state.settings.exportedArchives || [];
+    const archiveKey = `${cutoff.toISOString().split('T')[0]}`;
+    if(!forceExport && state.settings.exportedArchives.includes(archiveKey)) return; // Already exported
+
+    try {
+      const timestamp = new Date().toISOString().split('T')[0];
+
+      // Export Shift Reports as PDF
+      if(oldReports.length > 0){
+        const reportData = oldReports.map(r => {
+          const m = state.machines.find(x => x.id === r.machineId);
+          return {
+            header: `${new Date(r.ts).toLocaleDateString('sv-SE')} - ${r.shift?.toUpperCase() || ''}`,
+            details: [
+              `Datum: ${new Date(r.ts).toLocaleString('sv-SE')}`,
+              `Maskin: ${m ? m.name : r.machineId}`,
+              `Skift: ${r.shift?.toUpperCase() || ''}`,
+              `Operatör: ${r.operator || ''}`,
+              `Signatur: ${r.signature || ''}`
+            ],
+            content: r.text || ''
+          };
+        });
+
+        downloadPDF(`Skiftsrapporter_Arkiv_${timestamp}.pdf`, 'Skiftsrapporter - Arkiv', reportData);
+      }
+
+      // Export Notes as PDF
+      if(oldNotes.length > 0){
+        const notesData = oldNotes.map(l => {
+          const m = state.machines.find(x => x.id === l.meta?.machineId);
+          return {
+            header: `${new Date(l.ts).toLocaleDateString('sv-SE')}`,
+            details: [
+              `Datum: ${new Date(l.ts).toLocaleString('sv-SE')}`,
+              `Maskin: ${m ? m.name : (l.meta?.machineId || '')}`,
+              `Operatör: ${l.meta?.operator || ''}`
+            ],
+            content: l.meta?.text || ''
+          };
+        });
+
+        downloadPDF(`Noteringar_Arkiv_${timestamp}.pdf`, 'Noteringar - Arkiv', notesData);
+      }
+
+      // Export Checklist completions as PDF
+      if(oldTaskLogs.length > 0){
+        const checklistData = oldTaskLogs.map(l => {
+          const m = state.machines.find(x => x.id === l.meta?.machineId);
+          const t = state.tasks.find(x => x.id === l.meta?.taskId);
+          return {
+            header: `${new Date(l.ts).toLocaleDateString('sv-SE')} - ${t ? t.title : 'Uppgift'}`,
+            details: [
+              `Datum: ${new Date(l.ts).toLocaleString('sv-SE')}`,
+              `Maskin: ${m ? m.name : (l.meta?.machineId || '')}`,
+              `Uppgift: ${t ? t.title : (l.meta?.taskId || '')}`,
+              `Operatör: ${l.meta?.operator || ''}`,
+              `Kommentar: ${l.meta?.comment || 'Ingen kommentar'}`
+            ],
+            content: ''
+          };
+        });
+
+        downloadPDF(`Checklista_Arkiv_${timestamp}.pdf`, 'Checklista - Arkiv', checklistData);
+      }
+
+      // Mark as exported
+      if(!state.settings.exportedArchives.includes(archiveKey)){
+        state.settings.exportedArchives.push(archiveKey);
+        saveState(state);
+      }
+
+      toast(`📦 Arkiverade ${oldReports.length} rapporter, ${oldNotes.length} noteringar, ${oldTaskLogs.length} checklistor`);
+    } catch(e){
+      console.error('Auto-export failed:', e);
+      toast('❌ Export misslyckades');
+    }
+  }
+
+  function downloadTextFile(filename, content){
+    const blob = new Blob([content], {type: 'text/plain;charset=utf-8'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function downloadPDF(filename, title, dataArray){
+    try {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+
+      // Set font to support Swedish characters
+      doc.setFont('helvetica');
+
+      let yPos = 20;
+      const pageHeight = doc.internal.pageSize.height;
+      const margin = 20;
+      const lineHeight = 7;
+      const maxWidth = 170;
+
+      // Title
+      doc.setFontSize(16);
+      doc.setFont('helvetica', 'bold');
+      doc.text(title, margin, yPos);
+      yPos += 10;
+
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Genererad: ${new Date().toLocaleString('sv-SE')}`, margin, yPos);
+      yPos += 10;
+
+      // Add separator
+      doc.setDrawColor(200, 200, 200);
+      doc.line(margin, yPos, 190, yPos);
+      yPos += 8;
+
+      // Content
+      doc.setFontSize(10);
+
+      dataArray.forEach((item, index) => {
+        // Check if we need a new page
+        if(yPos > pageHeight - 40){
+          doc.addPage();
+          yPos = 20;
+        }
+
+        // Item header
+        doc.setFont('helvetica', 'bold');
+        doc.text(`${index + 1}. ${item.header}`, margin, yPos);
+        yPos += lineHeight;
+
+        // Item details
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(9);
+
+        item.details.forEach(detail => {
+          if(yPos > pageHeight - 30){
+            doc.addPage();
+            yPos = 20;
+          }
+
+          const lines = doc.splitTextToSize(detail, maxWidth);
+          lines.forEach(line => {
+            doc.text(line, margin + 5, yPos);
+            yPos += lineHeight - 1;
+          });
+        });
+
+        // Item content (main text)
+        if(item.content){
+          yPos += 2;
+          doc.setFont('helvetica', 'italic');
+          const contentLines = doc.splitTextToSize(item.content, maxWidth);
+          contentLines.forEach(line => {
+            if(yPos > pageHeight - 30){
+              doc.addPage();
+              yPos = 20;
+            }
+            doc.text(line, margin + 5, yPos);
+            yPos += lineHeight - 1;
+          });
+        }
+
+        // Separator between items
+        yPos += 5;
+        doc.setDrawColor(220, 220, 220);
+        doc.line(margin, yPos, 190, yPos);
+        yPos += 8;
+      });
+
+      // Add page numbers
+      const pageCount = doc.internal.getNumberOfPages();
+      for(let i = 1; i <= pageCount; i++){
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Sida ${i} av ${pageCount}`, 190, pageHeight - 10, { align: 'right' });
+      }
+
+      doc.save(filename);
+    } catch(e){
+      console.error('PDF generation failed:', e);
+      toast('❌ PDF-generering misslyckades. Kontrollera att jsPDF är laddat.');
+    }
+  }
+
+  function renderAll(){
+    // Auto-export old data before deletion
+    autoExportOldData();
+
+    // Enforce 14-dagars retention för loggar & rapporter
+    const days = state.settings.retentionDays || DEFAULTS.retentionDefault;
+    const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - days);
+    state.logs = state.logs.filter(l => new Date(l.ts) >= cutoff);
+    state.reports = state.reports.filter(r => new Date(r.ts) >= cutoff);
+
+    renderChecklistTypes(); renderOperatorSelect(); renderMachines(); selectedMachineUpdate(); detectAndSetShift(); renderTasks(); renderStats(); renderOperatorMiniStats(); renderRecentLogs(); renderOperatorPublicPanels(); renderPmsForOperator(); renderOperatorShiftReminder(); renderOperatorInlineStatus();
+    // set retention UI
+    document.getElementById('retentionDays').value = state.settings.retentionDays || DEFAULTS.retentionDefault;
+  }
+
+  // keyboard shortcuts
+  window.addEventListener('keydown', (e)=> {
+    if(e.ctrlKey && e.key==='s'){ e.preventDefault(); saveState(state); toast('Sparat'); }
+  });
+
+  // initial
+  renderAll();
+  applyAccessControl();
+
+  // Auto-refresh page on inactivity (operators only) to keep counters stable
+  (function setupInactivityAutoRefresh(){
+    const INACTIVITY_REFRESH_MS = 300000; // 5 minutes
+    let idleTimer = null;
+    function reset(){
+      if(idleTimer) clearTimeout(idleTimer);
+      if(!isAdmin()){
+        idleTimer = setTimeout(()=>{ try{ location.reload(); }catch(e){} }, INACTIVITY_REFRESH_MS);
+      }
+    }
+    ['mousemove','keydown','scroll','click','touchstart','visibilitychange'].forEach(ev=> window.addEventListener(ev, reset, {passive:true}));
+    reset();
+  })();
+
+  // Shift boundary monitor: automatically logout operator when shift ends
+  (function setupShiftBoundaryMonitor(){
+    let lastTag = getCurrentShiftTag();
+    function check(){
+      const cur = getCurrentShiftTag();
+      if(cur !== lastTag){
+        lastTag = cur;
+        const sess = getOperatorShiftSession();
+        if(sess && sess.shiftTag !== cur){
+          if(sess && sess.operatorId){
+          state.logs = Array.isArray(state.logs) ? state.logs : [];
+          state.logs.push({ id: uid(), type:'shift_checkout', ts: now(), meta:{ machineId: selMachine.value, operator: sess.operatorId } });
+          saveState(state);
+          }
+          clearOperatorShiftSession();
+          renderOperatorShiftReminder();
+          if(typeof renderOperatorInlineStatus === 'function') renderOperatorInlineStatus();
+          renderOperatorMiniStats();
+          renderPmsForOperator();
+          renderRecentLogs();
+          toast('Skift slut — du har loggats ut');
+        } else {
+          // Shift changed but no active operator session; still refresh counters
+          if(typeof renderOperatorInlineStatus === 'function') renderOperatorInlineStatus();
+          renderOperatorMiniStats();
+          renderPmsForOperator();
+        }
+      }
+    }
+    setInterval(check, 60000); // check every minute
+    check(); // immediate check on load
+  })();
+
+  // Machine dropdown changes
+  selMachine.addEventListener('change', ()=> {
+    // persist last selection for stability across refresh
+    state.settings = state.settings || {}; state.settings.lastSelectedMachineId = selMachine.value; saveState(state);
+    selectedMachineUpdate(); renderTasks(); renderOperatorInlineStatus(); renderOperatorShiftReminder(); renderOperatorMiniStats(); renderOperatorPublicPanels(); renderPmsForOperator();
+    loadShiftReportForCurrentShift(); // Reload shift report when machine changes
+  });
+
+  selShift.addEventListener('change', ()=> {
+    loadShiftReportForCurrentShift(); // Reload shift report when shift changes
+  });
+
+
+  // listen to storage changes (multi-tab)
+  window.addEventListener('storage', (e)=> { if(e.key === STORE_KEY) { state = loadState(); renderAll(); } });
+
+})();
+</script>
+</body>
+</html>
